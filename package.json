@@ -1,0 +1,28 @@
+{
+  "name": "3diff",
+  "version": "0.1.0",
+  "description": "A three-level model for edits on textual documents",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gspinaci/3Diff.git"
+  },
+  "author": "@gspinaci",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/gspinaci/3Diff/issues"
+  },
+  "homepage": "https://github.com/gspinaci/3Diff#readme",
+  "standard": {
+    "globals": [
+      "$",
+      "logOutput",
+      "DiffAlgorithmSelector",
+      "algorithms",
+      "diff_match_patch"
+    ]
+  }
+}

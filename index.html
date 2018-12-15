@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <!-- Required meta tags -->
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+  <!-- Bootstrap CSS -->
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO"
+    crossorigin="anonymous">
+
+  <title>Hello, world!</title>
+</head>
+
+<body>
+
+  <!-- Navbar -->
+  <nav class="navbar navbar-dark bg-dark">
+    <span class="navbar-brand mb-0 h1">Navbar</span>
+  </nav>
+
+  <!-- Container -->
+  <div class="container">
+
+    <h1>3Diff alg</h1>
+
+    <form>
+      <div class="form-row">
+        <div class="col-md-6">
+          <label for="oldTextTextarea">Old text</label>
+          <textarea class="form-control" id="oldTextTextarea" rows="5">Hello world, i'm here!</textarea>
+        </div>
+        <div class="col-md-6">
+          <label for="newTextTextarea">New text</label>
+          <textarea class="form-control" id="newTextTextarea" rows="5">Hello world. I'm here</textarea>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <button type="button" class="btn btn-success" id="btnDiff">Execute diff</button>
+      </div>
+    </form>
+
+    <!-- Result -->
+    <code>
+      <pre id="codeResult"></pre></code>
+  </div>
+
+  <!-- Optional JavaScript -->
+  <!-- jQuery first, then Popper.js, then Bootstrap JS -->
+  <script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
+    crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49"
+    crossorigin="anonymous"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy"
+    crossorigin="anonymous"></script>
+
+  <!-- CDN NPM package https://www.npmjs.com/package/diff-match-patch of https://github.com/google/diff-match-patch-->
+  <!--<script src="https://cdn.jsdelivr.net/npm/diff_match_patch@0.1.1/lib/diff_match_patch.min.js"></script>-->
+  <script src="assets/diff_match_patch.js"></script>
+  <script src="assets/3diff.js"></script>
+  <script src="assets/script.js"></script>
+</body>
+
+</html>
