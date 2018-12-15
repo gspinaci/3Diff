@@ -55,6 +55,26 @@ class Adapter {
   makeDiff (listMechanicalOperations) {
     this.threeDiff = new ThreeDiff(listMechanicalOperations)
   }
+
+  /**
+   *
+   *
+   * @param {Number} length
+   * @returns {String} formatted eg "edit-0001"
+   * @memberof Adapter
+   */
+  _getId (length) {
+    length++
+    let id = 'edit-'
+    let tmp = length.toString()
+    let max = 4 - tmp.length
+
+    while (max > 0) {
+      id += '0'
+      max--
+    }
+    return id + length
+  }
 }
 
 /**
@@ -123,7 +143,7 @@ class DiffMatchPatchAdapter extends Adapter {
 
           // Update diffs
           newDiffs.push({
-            id: this._getId(),
+            id: this._getId(newDiffs.length),
             op: op,
             content: diff['1'],
             pos: absoluteIndex
@@ -132,16 +152,6 @@ class DiffMatchPatchAdapter extends Adapter {
       })
     }
     return newDiffs
-  }
-
-  /**
-   *
-   *
-   * @returns
-   * @memberof DiffMatchPatchAdapter
-   */
-  _getId () {
-    return 'edit-0001'
   }
 }
 
