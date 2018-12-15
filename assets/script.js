@@ -15,9 +15,11 @@ $('document').ready(function () {
     makeDiff(oldText, newText, algorithms.diffMatchPatch)
   })
 
-  function makeDiff (oldText, newText, type = 'diff_match_patch') {
+  function makeDiff (oldText, newText, type) {
     const algorithm = new DiffAlgorithmSelector(oldText, newText, type)
     algorithm.runDiffAlgorithm()
+    let text = algorithm.getStructuralOperations()
+    logOutput(JSON.stringify(text, null, 2))
   }
 })
 
