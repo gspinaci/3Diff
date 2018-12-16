@@ -4,7 +4,8 @@
 
 // Init vars
 
-const codeResult = $('#codeResult')
+const codeMechanicalList = $('#codeMechanicalList')
+const codeStructuralList = $('#codeStructuralList')
 const btnDiff = $('#btnDiff')
 
 $('document').ready(function () {
@@ -16,14 +17,25 @@ $('document').ready(function () {
   })
 
   function makeDiff (oldText, newText, type) {
+    // Get the right algorithm
     const algorithm = new DiffAlgorithmSelector(oldText, newText, type)
-    algorithm.runDiffAlgorithm()
-    let text = algorithm.getStructuralOperations()
-    logOutput(JSON.stringify(text, null, 2))
+
+    // Log the result
+    logMechanicalList(JSON.stringify(algorithm.getMechanicalOperations(), null, 2))
+    logStructuralList(JSON.stringify(algorithm.getStructuralOperations(), null, 2))
   }
 })
 
-const logOutput = text => {
-  codeResult.append(text)
-  codeResult.append('\n')
-}
+/**
+ *
+ *
+ * @param {*} text
+ */
+const logMechanicalList = text => codeMechanicalList.html(text)
+
+/**
+ *
+ *
+ * @param {*} text
+ */
+const logStructuralList = text => codeStructuralList.html(text)

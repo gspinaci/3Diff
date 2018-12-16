@@ -1,14 +1,19 @@
-
 /* eslint-disable no-unused-vars */
+/* eslint-disable no-labels */
 
 // List of diff types
 const diffType = {
   mechanical: {
+    id: 'edit',
     ins: 'INS',
     del: 'DEL'
   },
   structural: {
+    id: 'structural',
     punctuation: 'PUNCTUATION'
+  },
+  semantic: {
+    id: 'semantic'
   }
 }
 
@@ -24,15 +29,24 @@ const regexp = {
 
 // List of structural rules
 const structuralRules = {
+  // Punctuation rules
   punctuation: [
-    // Check if the two diffs are different
-    (leftDiff, rightDiff) => leftDiff.op !== rightDiff.op,
+    // First rule: if two diffs are without the same operation (INS or DEL) OR a single diff
+    (leftDiff, rightDiff = null) => rightDiff === null ? true : (leftDiff.op !== rightDiff.op),
 
-    // Check if the text containt a punct in the first element
-    (leftDiff, rightDiff) => ((RegExp(regexp.punctuation).exec(leftDiff.content).index === 0) && (RegExp(regexp.punctuation).exec(rightDiff.content))),
+    // Second rule: if the diff position are same
+    (leftDiff, rightDiff = null) => rightDiff === null ? true : (leftDiff.pos === rightDiff.pos),
 
-    // Check if the two position are equal
-    (leftDiff, rightDiff) => leftDiff.pos === rightDiff.pos
+    // Third rule: if the text contains only the matching pattern
+    (leftDiff, rightDiff = null) => {
+      // If we have only leftDiff
+      if (rightDiff === null) { return RegExp(regexp.punctuation).exec(leftDiff.content).index === 0 }
+
+      // If we have both diffs
+      let leftRegex = RegExp(regexp.punctuation).exec(leftDiff.content)
+      let rightRegex = RegExp(regexp.punctuation).exec(rightDiff.content)
+      return ((leftRegex !== null && leftRegex.index === 0) && (rightRegex !== null && rightRegex.index === 0))
+    }
   ]
 }
 /**
@@ -84,35 +98,18 @@ class Adapter {
    * @returns
    * @memberof Adapter
    */
-  getStructuralOperations () {
-    return this.threeDiff._getStructuralOperations()
+  getMechanicalOperations () {
+    return this.threeDiff.getMechanicalOperations()
   }
 
   /**
    *
    *
-   * @param {Number} length of the
-   * @returns {String} formatted eg "edit-0001"
+   * @returns
    * @memberof Adapter
-   *
-   * This method returns the next id
    */
-  _getId (lastId) {
-    // Update the lastId
-    lastId++
-
-    // Start to create the new id
-    let id = 'edit-'
-
-    // Add the right amount of 0 before the new id
-    let tmp = lastId.toString()
-    let max = 4 - tmp.length
-    while (max > 0) {
-      id += '0'
-      max--
-    }
-
-    return id + lastId
+  getStructuralOperations () {
+    return this.threeDiff.getStructuralOperations()
   }
 }
 
@@ -145,6 +142,9 @@ class DiffMatchPatchAdapter extends Adapter {
     // Get Patches
     // https://github.com/google/diff-match-patch/wiki/API#patch_makediffs--patches
     this.patches = dmp.patch_make(this.diffs)
+
+    // Execute the run algorithm
+    this.runDiffAlgorithm()
   }
 
   /**
@@ -173,16 +173,18 @@ class DiffMatchPatchAdapter extends Adapter {
         // Increase the current index by the length of current element, if it wasn't a DEL
         if (index > 0) {
           let previous = patch['diffs'][index - 1]
-          if (previous[0] !== -1) { absoluteIndex += parseInt(previous[1].length) }
+          if (previous[0] !== -1) {
+            absoluteIndex += parseInt(previous[1].length)
+          }
         }
         // Not_changed status doesn't matter
         if (diff[0] !== 0) {
-        // Get mechanical type
+          // Get mechanical type
           let op = diff['0'] === 1 ? diffType.mechanical.ins : diffType.mechanical.del
 
           // Update diffs
           newDiffs.push({
-            id: this._getId(newDiffs.length),
+            id: getId(newDiffs.length, diffType.mechanical.id),
             op: op,
             content: diff['1'],
             pos: absoluteIndex
@@ -215,7 +217,7 @@ class ThreeDiff {
     // logOutput(JSON.stringify(listMechanicalOperations, null, 2))
 
     // Execute the structural analysis
-    this._executeStructuralAnalysis(this.listMechanicalOperations)
+    this._executeStructuralAnalysis()
   }
 
   /**
@@ -223,18 +225,47 @@ class ThreeDiff {
    *
    * @memberof ThreeDiff
    */
-  _executeStructuralAnalysis (listMechanicalOperations) {
+  _executeStructuralAnalysis () {
+    // Copy the mechanicalOperations list
+    let newListMechanicalOperations = this.listMechanicalOperations.slice(0)
+
     // Iterate over the list of mechanical operations
-    listMechanicalOperations.map((leftDiff, leftIndex) => {
+    const leftIndex = 0
+    while (newListMechanicalOperations.length > 0) {
+      // Set leftDiff as not found
+      let found = false
+      // Get reference to leftIndex
+      let leftDiff = newListMechanicalOperations[leftIndex]
+
       // Remove the current diff from the list
-      listMechanicalOperations.splice(leftIndex, 1)
+      newListMechanicalOperations.splice(leftIndex, 1)
 
       // Iterate over the list of all mechanical operations without the other one
-      listMechanicalOperations.map(rightDiff => {
-        // Create punctuation if the two diff are
-        if (this._checkPuntuation(leftDiff, rightDiff)) { this.listStructuralOperations.push(this._createPunctuation(leftDiff, rightDiff)) }
-      })
-    })
+      let rightIndex = leftIndex
+      for (let rightDiff of newListMechanicalOperations) {
+        // Check punctuation
+        if (this._checkPuntuation(leftDiff, rightDiff)) {
+          // Remove this diff
+          newListMechanicalOperations.splice(rightIndex, 1)
+
+          // Update structural operations
+          this.listStructuralOperations.push(this._createPunctuation(leftDiff, rightDiff))
+
+          // Diff tagged as found
+          found = true
+          break
+        }
+        rightIndex++
+      }
+
+      // If The leftDiff is not inserted yet inside the structural
+      if (!found) {
+        // If no matching patterns
+        if (this._checkPuntuation(leftDiff)) {
+          return this.listStructuralOperations.push(this._createPunctuation(leftDiff))
+        }
+      }
+    }
   }
 
   /**
@@ -261,18 +292,17 @@ class ThreeDiff {
    * @memberof ThreeDiff
    */
   _createPunctuation (leftDiff, rightDiff) {
-    //
+    // Handle when rightDiff doesn't exist
+    let items = [leftDiff]
+    if (rightDiff != null) { items.push(rightDiff) }
+
+    // Return the structure
     return {
-      id: 'structural-0010',
+      id: getId(this.listStructuralOperations.length, diffType.structural.id),
       op: diffType.structural.punctuation,
-      old: '',
-      new: '',
       by: 'Gianmarco Spinaci',
       timestamp: Date.now(),
-      items: [
-        leftDiff,
-        rightDiff
-      ]
+      items: items
     }
   }
 
@@ -282,9 +312,37 @@ class ThreeDiff {
    * @returns
    * @memberof ThreeDiff
    */
-  _getStructuralOperations () {
+  getMechanicalOperations () {
+    return this.listMechanicalOperations
+  }
+
+  /**
+   *
+   *
+   * @returns
+   * @memberof ThreeDiff
+   */
+  getStructuralOperations () {
     return this.listStructuralOperations
   }
+}
+
+function getId (lastId, type) {
+  // Update the lastId
+  lastId++
+
+  // Start to create the new id
+  let id = `${type}-`
+
+  // Add the right amount of 0 before the new id
+  let tmp = lastId.toString()
+  let max = 4 - tmp.length
+  while (max > 0) {
+    id += '0'
+    max--
+  }
+
+  return id + lastId
 }
 
 /* eslint-enable no-unused-vars */
