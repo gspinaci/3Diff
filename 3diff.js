@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-vars */
 /* eslint-disable no-labels */
-
+// sad
 // List of diff types
 const diffType = {
   mechanical: {
@@ -354,7 +354,6 @@ function getId (lastId, type) {
     id += '0'
     max--
   }
-
   return id + lastId
 }
 
