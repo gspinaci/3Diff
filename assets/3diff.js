@@ -32,13 +32,18 @@ const regexp = {
 const structuralRules = {
   // Punctuation rules
   punctuation: [
-    // First rule: if two diffs are without the same operation (INS or DEL) OR a single diff
+    // First rule: if the content length is at most 3
+    (leftDiff, rightDiff = null) => rightDiff === null
+      ? leftDiff.content.length <= 3
+      : leftDiff.content.length <= 3 && rightDiff.content.length <= 3,
+
+    // Second rule: if two diffs are without the same operation (INS or DEL) OR a single diff
     (leftDiff, rightDiff = null) => rightDiff === null ? true : (leftDiff.op !== rightDiff.op),
 
-    // Second rule: if the diff position are same
+    // Third rule: if the diff position are same
     (leftDiff, rightDiff = null) => rightDiff === null ? true : (leftDiff.pos === rightDiff.pos),
 
-    // Third rule: if the text match with the regex pattern
+    // Fourth rule: if the text match with the regex pattern
     (leftDiff, rightDiff = null) =>
       rightDiff === null
         ? RegExp(regexp.punctuation).test(leftDiff.content)
