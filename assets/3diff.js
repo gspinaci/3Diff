@@ -32,18 +32,19 @@ const regexp = {
 const structuralRules = {
   // Punctuation rules
   punctuation: [
-    // First rule: if the content length is at most 3
+
+    // If the diff position are same
+    (leftDiff, rightDiff = null) => rightDiff === null ? true : (leftDiff.pos === rightDiff.pos),
+
+    // If the content length is at most 3
     (leftDiff, rightDiff = null) => rightDiff === null
       ? leftDiff.content.length <= 3
       : leftDiff.content.length <= 3 && rightDiff.content.length <= 3,
 
-    // Second rule: if two diffs are without the same operation (INS or DEL) OR a single diff
+    // If two diffs are without the same operation (INS or DEL) OR a single diff
     (leftDiff, rightDiff = null) => rightDiff === null ? true : (leftDiff.op !== rightDiff.op),
 
-    // Third rule: if the diff position are same
-    (leftDiff, rightDiff = null) => rightDiff === null ? true : (leftDiff.pos === rightDiff.pos),
-
-    // Fourth rule: if the text match with the regex pattern
+    // If the text match with the regex pattern
     (leftDiff, rightDiff = null) =>
       rightDiff === null
         ? RegExp(regexp.punctuation).test(leftDiff.content)
@@ -244,11 +245,9 @@ class ThreeDiff {
     while (newListMechanicalOperations.length > 0) {
       // Set leftDiff as not found
       let found = false
-      // Get reference to leftIndex
-      let leftDiff = newListMechanicalOperations[leftIndex]
 
-      // Remove the current diff from the list
-      newListMechanicalOperations.splice(leftIndex, 1)
+      // Remove the current diff from the list and get reference to it
+      let leftDiff = newListMechanicalOperations.splice(leftIndex, 1)[0]
 
       // Iterate over the list of all mechanical operations without the other one
       let rightIndex = leftIndex
@@ -272,7 +271,7 @@ class ThreeDiff {
       if (!found) {
         // If no matching patterns
         if (this._checkPuntuation(leftDiff)) {
-          return this.listStructuralOperations.push(this._createPunctuation(leftDiff))
+          this.listStructuralOperations.push(this._createPunctuation(leftDiff))
         }
       }
     }
