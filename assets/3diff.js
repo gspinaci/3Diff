@@ -23,7 +23,8 @@ const algorithms = {
 }
 
 const regexp = {
-  // Match a punctuation that can have 0 OR 1 space and 0 OR 1 letter
+  // A single punctuation with a optional following \s (space)
+  // and an optional following A-z (capitalized or not character)
   punctuation: /\W[\s]?[A-z]?/
 }
 
@@ -37,16 +38,11 @@ const structuralRules = {
     // Second rule: if the diff position are same
     (leftDiff, rightDiff = null) => rightDiff === null ? true : (leftDiff.pos === rightDiff.pos),
 
-    // Third rule: if the text contains only the matching pattern
-    (leftDiff, rightDiff = null) => {
-      // If we have only leftDiff
-      if (rightDiff === null) { return RegExp(regexp.punctuation).exec(leftDiff.content).index === 0 }
-
-      // If we have both diffs
-      let leftRegex = RegExp(regexp.punctuation).exec(leftDiff.content)
-      let rightRegex = RegExp(regexp.punctuation).exec(rightDiff.content)
-      return ((leftRegex !== null && leftRegex.index === 0) && (rightRegex !== null && rightRegex.index === 0))
-    }
+    // Third rule: if the text match with the regex pattern
+    (leftDiff, rightDiff = null) =>
+      rightDiff === null
+        ? RegExp(regexp.punctuation).test(leftDiff.content)
+        : RegExp(regexp.punctuation).test(leftDiff.content) && RegExp(regexp.punctuation).test(rightDiff.content)
   ]
 }
 /**
@@ -82,6 +78,10 @@ class DiffAlgorithmSelector {
  * @class Adapter
  */
 class Adapter {
+  constructor (oldText, newText) {
+    this.oldText = oldText
+    this.newText = newText
+  }
   /**
    *
    *
@@ -89,7 +89,7 @@ class Adapter {
    * @memberof Adapter
    */
   makeDiff (listMechanicalOperations) {
-    this.threeDiff = new ThreeDiff(listMechanicalOperations)
+    this.threeDiff = new ThreeDiff(listMechanicalOperations, this.oldText, this.newText)
   }
 
   /**
@@ -126,8 +126,8 @@ class Adapter {
  */
 class DiffMatchPatchAdapter extends Adapter {
   constructor (oldText, newText) {
-    super()
-    // Create the class
+    // Save texts
+    super(oldText, newText)
 
     /* eslint-disable new-cap */
     let dmp = new diff_match_patch()
@@ -142,6 +142,8 @@ class DiffMatchPatchAdapter extends Adapter {
     // Get Patches
     // https://github.com/google/diff-match-patch/wiki/API#patch_makediffs--patches
     this.patches = dmp.patch_make(this.diffs)
+
+    console.log(this.patches)
 
     // Execute the run algorithm
     this.runDiffAlgorithm()
@@ -163,11 +165,13 @@ class DiffMatchPatchAdapter extends Adapter {
    * @memberof DiffMatchPatchAdapter
    */
   _getMechanicalOps () {
-    let absoluteIndex = 0
     let newDiffs = []
 
     // Iterate over patches
     for (let patch of this.patches) {
+      // Set the absolute index
+      let absoluteIndex = patch['start1']
+
       // Iterate over diffs
       patch['diffs'].map((diff, index) => {
         // Increase the current index by the length of current element, if it wasn't a DEL
@@ -207,14 +211,15 @@ class ThreeDiff {
    * @param {Array} listMechanicalOperations
    * @memberof ThreeDiff
    */
-  constructor (listMechanicalOperations) {
+  constructor (listMechanicalOperations, oldText, newText) {
     // Save the list of all the mechanical operations
     this.listMechanicalOperations = listMechanicalOperations
     this.listStructuralOperations = []
     this.listSemanticOperations = []
 
-    // Log the mechanical operations
-    // logOutput(JSON.stringify(listMechanicalOperations, null, 2))
+    // Save the texts
+    this.oldText = oldText
+    this.newText = newText
 
     // Execute the structural analysis
     this._executeStructuralAnalysis()
@@ -301,7 +306,7 @@ class ThreeDiff {
       id: getId(this.listStructuralOperations.length, diffType.structural.id),
       op: diffType.structural.punctuation,
       by: 'Gianmarco Spinaci',
-      timestamp: Date.now(),
+      // timestamp: Date.now(),
       items: items
     }
   }
@@ -324,6 +329,10 @@ class ThreeDiff {
    */
   getStructuralOperations () {
     return this.listStructuralOperations
+  }
+
+  getTextualContext (diff, text) {
+
   }
 }
 
