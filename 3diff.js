@@ -369,13 +369,13 @@ class StructuralDiff extends Diff {
    * @param {*} [by=globalUser]
    * @memberof StructuralDiff
    */
-  constructor (operation, mechanicalDiffs, lastId, oldContext = TBD, newContext = TBD, by = globalUser) {
+  constructor (operation, mechanicalDiffs, lastId, oldContext = null, newContext = null, by = globalUser) {
     super(operation, diffType.structural.id, lastId)
+    if (oldContext !== null) { this.old = oldContext }
+    if (newContext !== null) { this.new = newContext }
     this.by = by
     this.timestamp = Date.now()
     this.items = mechanicalDiffs
-    this.old = oldContext
-    this.new = newContext
   }
 }
 /* eslint-enable no-unused-vars */
