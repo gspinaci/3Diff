@@ -27,35 +27,12 @@ const algorithms = {
 const regexp = {
   // A single punctuation with a optional following \s (space)
   // and an optional following A-z (capitalized or not character)
-  punctuation: /\W[\s]?[A-z]?/
+  punctuation: /^\W[\s]?[A-z]?$/
 }
 
+const TBD = 'TBD'
 const globalUser = 'Gianmarco Spinaci'
 
-/*
-// List of structural rules
-const structuralRules = {
-  // Punctuation rules
-  punctuation: [
-
-    // If the diff position are same
-    (leftDiff, rightDiff) => rightDiff === null ? true : (leftDiff.pos === rightDiff.pos),
-
-    // If the content length is at most 3
-    (leftDiff, rightDiff = null) => rightDiff === null
-      ? leftDiff.content.length <= 3
-      : leftDiff.content.length <= 3 && rightDiff.content.length <= 3,
-
-    // If two diffs are without the same operation (INS or DEL) OR a single diff
-    (leftDiff, rightDiff = null) => rightDiff === null ? true : (leftDiff.op !== rightDiff.op),
-
-    // If the text match with the regex pattern
-    (leftDiff, rightDiff = null) =>
-      rightDiff === null
-        ? RegExp(regexp.punctuation).test(leftDiff.content)
-        : RegExp(regexp.punctuation).test(leftDiff.content) && RegExp(regexp.punctuation).test(rightDiff.content)
-  ]
-} */
 /**
  *
  *
@@ -228,10 +205,27 @@ class ThreeDiff {
     // Initialise the structural rules
     this.structuralRules = [
 
-      // TextInsert or TextDelete
-      diff => {
-        return new StructuralDiff(diff.op === diffType.mechanical.ins ? diffType.structural.textInsert : diffType.structural.textDelete, [diff], this.listStructuralOperations.length)
-      }
+      // Punctuation
+      (leftDiff, rightDiff) =>
+
+        // Both contents must match the regex
+        (RegExp(regexp.punctuation).test(leftDiff.content) &&
+          RegExp(regexp.punctuation).test(rightDiff.content)
+        ) &&
+
+        // Positions must be equal
+        (leftDiff.pos === rightDiff.pos) &&
+
+        // Operations must be different
+        (leftDiff.op !== rightDiff.op)
+          ? new StructuralDiff(diffType.structural.punctuation, [leftDiff, rightDiff], this.listStructuralOperations.length)
+          : false,
+
+      // TextInsert or TextDelete. They work only with one parameter
+      (leftDiff, rightDiff = null) =>
+        rightDiff === null
+          ? new StructuralDiff(leftDiff.op === diffType.mechanical.ins ? diffType.structural.textInsert : diffType.structural.textDelete, [leftDiff], this.listStructuralOperations.length)
+          : false
     ]
 
     // Execute the structural analysis
@@ -250,23 +244,31 @@ class ThreeDiff {
     // Iterate over the list of mechanical operations
     const leftIndex = 0
     while (newListMechanicalOperations.length > 0) {
+      // Set a matched rule
+      let matchedRules = false
+
       // Remove the current diff from the list and get reference to it
       let leftDiff = newListMechanicalOperations.splice(leftIndex, 1)[0]
 
-      // If the leftDiff is the last remaining diff
-      if (newListMechanicalOperations.length === 0) { this.listStructuralOperations.push(this.structuralRules[this.structuralRules.length - 1](leftDiff)) }
+      secondFor:
+      for (let rightIndex = leftIndex; rightIndex < newListMechanicalOperations.length; rightIndex++) {
+        let rightDiff = newListMechanicalOperations[rightIndex]
 
-      label:
-      for (let rightDiff of newListMechanicalOperations) {
         // Iterate over rules
         for (let rule of this.structuralRules) {
           // If the current rule matches
           let ruleResult = rule(leftDiff, rightDiff)
           if (ruleResult !== false) {
+            newListMechanicalOperations.splice(rightIndex, 1)
             this.listStructuralOperations.push(ruleResult)
-            break label
+            matchedRules = true
+            break secondFor
           }
         }
+      }
+
+      if (!matchedRules) {
+        this.listStructuralOperations.push(this.structuralRules[this.structuralRules.length - 1](leftDiff))
       }
     }
   }
@@ -367,7 +369,7 @@ class StructuralDiff extends Diff {
    * @param {*} [by=globalUser]
    * @memberof StructuralDiff
    */
-  constructor (operation, mechanicalDiffs, lastId, oldContext = '', newContext = '', by = globalUser) {
+  constructor (operation, mechanicalDiffs, lastId, oldContext = TBD, newContext = TBD, by = globalUser) {
     super(operation, diffType.structural.id, lastId)
     this.by = by
     this.timestamp = Date.now()
