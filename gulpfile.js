@@ -1,15 +1,11 @@
 const gulp = require('gulp')
-const watch = require('gulp-watch')
-const batch = require('gulp-batch')
 const minify = require('gulp-minify')
 
 const jsFiles = ['3diff.js']
 const jsDest = './docs/assets/'
 
 gulp.task('watch', () => {
-  watch(jsFiles, batch((events, done) => {
-    gulp.start('build', done)
-  }))
+  gulp.watch(jsFiles, gulp.series('build'))
 })
 
 gulp.task('build', () => {
