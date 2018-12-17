@@ -10,7 +10,9 @@ const diffType = {
   },
   structural: {
     id: 'structural',
-    punctuation: 'PUNCTUATION'
+    punctuation: 'PUNCTUATION',
+    textInsert: 'TEXTINSERT',
+    textDelete: 'TEXTDELETE'
   },
   semantic: {
     id: 'semantic'
@@ -28,13 +30,16 @@ const regexp = {
   punctuation: /\W[\s]?[A-z]?/
 }
 
+const globalUser = 'Gianmarco Spinaci'
+
+/*
 // List of structural rules
 const structuralRules = {
   // Punctuation rules
   punctuation: [
 
     // If the diff position are same
-    (leftDiff, rightDiff = null) => rightDiff === null ? true : (leftDiff.pos === rightDiff.pos),
+    (leftDiff, rightDiff) => rightDiff === null ? true : (leftDiff.pos === rightDiff.pos),
 
     // If the content length is at most 3
     (leftDiff, rightDiff = null) => rightDiff === null
@@ -50,7 +55,7 @@ const structuralRules = {
         ? RegExp(regexp.punctuation).test(leftDiff.content)
         : RegExp(regexp.punctuation).test(leftDiff.content) && RegExp(regexp.punctuation).test(rightDiff.content)
   ]
-}
+} */
 /**
  *
  *
@@ -149,8 +154,6 @@ class DiffMatchPatchAdapter extends Adapter {
     // https://github.com/google/diff-match-patch/wiki/API#patch_makediffs--patches
     this.patches = dmp.patch_make(this.diffs)
 
-    console.log(this.patches)
-
     // Execute the run algorithm
     this.runDiffAlgorithm()
   }
@@ -193,12 +196,7 @@ class DiffMatchPatchAdapter extends Adapter {
           let op = diff['0'] === 1 ? diffType.mechanical.ins : diffType.mechanical.del
 
           // Update diffs
-          newDiffs.push({
-            id: getId(newDiffs.length, diffType.mechanical.id),
-            op: op,
-            content: diff['1'],
-            pos: absoluteIndex
-          })
+          newDiffs.push(new MechanicalDiff(op, diff['1'], absoluteIndex, newDiffs.length))
         }
       })
     }
@@ -227,6 +225,15 @@ class ThreeDiff {
     this.oldText = oldText
     this.newText = newText
 
+    // Initialise the structural rules
+    this.structuralRules = [
+
+      // TextInsert or TextDelete
+      diff => {
+        return new StructuralDiff(diff.op === diffType.mechanical.ins ? diffType.structural.textInsert : diffType.structural.textDelete, [diff], this.listStructuralOperations.length)
+      }
+    ]
+
     // Execute the structural analysis
     this._executeStructuralAnalysis()
   }
@@ -243,75 +250,24 @@ class ThreeDiff {
     // Iterate over the list of mechanical operations
     const leftIndex = 0
     while (newListMechanicalOperations.length > 0) {
-      // Set leftDiff as not found
-      let found = false
-
       // Remove the current diff from the list and get reference to it
       let leftDiff = newListMechanicalOperations.splice(leftIndex, 1)[0]
 
-      // Iterate over the list of all mechanical operations without the other one
-      let rightIndex = leftIndex
+      // If the leftDiff is the last remaining diff
+      if (newListMechanicalOperations.length === 0) { this.listStructuralOperations.push(this.structuralRules[this.structuralRules.length - 1](leftDiff)) }
+
+      label:
       for (let rightDiff of newListMechanicalOperations) {
-        // Check punctuation
-        if (this._checkPuntuation(leftDiff, rightDiff)) {
-          // Remove this diff
-          newListMechanicalOperations.splice(rightIndex, 1)
-
-          // Update structural operations
-          this.listStructuralOperations.push(this._createPunctuation(leftDiff, rightDiff))
-
-          // Diff tagged as found
-          found = true
-          break
-        }
-        rightIndex++
-      }
-
-      // If The leftDiff is not inserted yet inside the structural
-      if (!found) {
-        // If no matching patterns
-        if (this._checkPuntuation(leftDiff)) {
-          this.listStructuralOperations.push(this._createPunctuation(leftDiff))
+        // Iterate over rules
+        for (let rule of this.structuralRules) {
+          // If the current rule matches
+          let ruleResult = rule(leftDiff, rightDiff)
+          if (ruleResult !== false) {
+            this.listStructuralOperations.push(ruleResult)
+            break label
+          }
         }
       }
-    }
-  }
-
-  /**
-   *
-   *
-   * @param {JSON} leftDiff
-   * @param {JSON} rightDiff
-   * @returns
-   * @memberof ThreeDiff
-   */
-  _checkPuntuation (leftDiff, rightDiff) {
-    let punctuation = true
-    structuralRules.punctuation.map(rule => {
-      if (!rule(leftDiff, rightDiff)) punctuation = false
-    })
-    return punctuation
-  }
-
-  /**
-   *
-   *
-   * @param {JSON} leftDiff
-   * @param {JSON} rightDiff
-   * @memberof ThreeDiff
-   */
-  _createPunctuation (leftDiff, rightDiff) {
-    // Handle when rightDiff doesn't exist
-    let items = [leftDiff]
-    if (rightDiff != null) { items.push(rightDiff) }
-
-    // Return the structure
-    return {
-      id: getId(this.listStructuralOperations.length, diffType.structural.id),
-      op: diffType.structural.punctuation,
-      by: 'Gianmarco Spinaci',
-      // timestamp: Date.now(),
-      items: items
     }
   }
 
@@ -334,27 +290,90 @@ class ThreeDiff {
   getStructuralOperations () {
     return this.listStructuralOperations
   }
+}
 
-  getTextualContext (diff, text) {
+/**
+ *
+ *
+ * @class Diff
+ */
+class Diff {
+  /**
+   *Creates an instance of Diff.
+   * @param {*} operation
+   * @param {*} type
+   * @param {*} lastId
+   * @memberof Diff
+   */
+  constructor (operation, type, lastId) {
+    this.op = operation
+    this.id = this._setId(type, lastId)
+  }
 
+  /**
+   *
+   *
+   * @param {*} type
+   * @param {*} lastId
+   * @returns
+   * @memberof Diff
+   */
+  _setId (type, lastId) {
+    // Update the lastId
+    lastId++
+
+    // Start to create the new id
+    let id = `${type}-`
+
+    // Add the right amount of 0 before the new id
+    let tmp = lastId.toString()
+    let max = 4 - tmp.length
+    while (max > 0) {
+      id += '0'
+      max--
+    }
+    return id + lastId
   }
 }
 
-function getId (lastId, type) {
-  // Update the lastId
-  lastId++
-
-  // Start to create the new id
-  let id = `${type}-`
-
-  // Add the right amount of 0 before the new id
-  let tmp = lastId.toString()
-  let max = 4 - tmp.length
-  while (max > 0) {
-    id += '0'
-    max--
+/**
+ *
+ *
+ * @class MechanicalDiff
+ * @extends {Diff}
+ */
+class MechanicalDiff extends Diff {
+  constructor (operation, content, position, lastId) {
+    super(operation, diffType.mechanical.id, lastId)
+    this.content = content
+    this.pos = position
   }
-  return id + lastId
 }
 
+/**
+ *
+ *
+ * @class StructuralDiff
+ * @extends {Diff}
+ */
+class StructuralDiff extends Diff {
+  /**
+   *Creates an instance of StructuralDiff.
+   * @param {*} operation
+   * @param {*} mechanicalDiffs
+   * @param {*} lastId
+   * @param {string} [oldContext='']
+   * @param {string} [newContext='']
+   * @param {*} [by=globalUser]
+   * @memberof StructuralDiff
+   */
+  constructor (operation, mechanicalDiffs, lastId, oldContext = '', newContext = '', by = globalUser) {
+    super(operation, diffType.structural.id, lastId)
+    this.by = by
+    this.timestamp = Date.now()
+    this.items = mechanicalDiffs
+    this.old = oldContext
+    this.new = newContext
+  }
+}
 /* eslint-enable no-unused-vars */
