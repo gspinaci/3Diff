@@ -1,6 +1,4 @@
 /* eslint-disable no-unused-vars */
-/* eslint-disable no-labels */
-// sad
 // List of diff types
 const diffType = {
   mechanical: {
@@ -36,7 +34,7 @@ const regexp = {
 }
 
 const TBD = 'TBD'
-const globalUser = 'Gianmarco Spinaci'
+const globalUser = 'SAURON'
 
 /**
  *
@@ -194,6 +192,12 @@ class DiffMatchPatchAdapter extends Adapter {
  * @class Diff
  */
 class Diff {
+  /**
+   *Creates an instance of Diff.
+   * @param {*} type
+   * @param {*} lastId
+   * @memberof Diff
+   */
   constructor (type, lastId) {
     this.id = this._setId(type, lastId)
   }
@@ -203,7 +207,7 @@ class Diff {
    *
    * @param {*} type
    * @param {*} lastId
-   * @returns
+   * @returns id
    * @memberof Diff
    */
   _setId (type, lastId) {
@@ -223,16 +227,31 @@ class Diff {
     return id + lastId
   }
 
-  _getContext (newText) {
+  /**
+   *
+   *
+   * @param {*} newText
+   * @returns context
+   * @memberof Diff
+   *
+   *     = - = = = +
+   * eg: w o r l d s
+   *     0 1 2 3 4 5
+   */
+  _getContext (text) {
     // Get left and right context
-    let leftContext = newText.substring(0, this.pos)
-    let rightContext = newText.substring(this.op === diffType.mechanical.ins ? this.pos + this.content.length : this.pos, newText.length)
+    let leftContext = text.substring(0, this.pos)
+    let rightContext = text.substring(this.op === diffType.mechanical.ins ? this.pos + this.content.length : this.pos, text.length)
 
     // Get only the current word
     leftContext = leftContext.split(/\s/)[leftContext.split(/\s/).length - 1]
     rightContext = rightContext.split(/\s/)[0]
 
-    return leftContext + this.content + rightContext
+    if (this.op === diffType.mechanical.ins) { leftContext += this.content }
+
+    let contenxt = leftContext + rightContext
+
+    return contenxt
   }
 }
 
@@ -259,7 +278,20 @@ class MechanicalDiff extends Diff {
   }
 }
 
+/**
+ *
+ *
+ * @class StructuralDiff
+ * @extends {Diff}
+ */
 class StructuralDiff extends Diff {
+  /**
+   *Creates an instance of StructuralDiff.
+   * @param {*} lastId
+   * @param {*} item
+   * @param {*} [by=globalUser]
+   * @memberof StructuralDiff
+   */
   constructor (lastId, item, by = globalUser) {
     super(diffType.structural.id, lastId)
     this.op = TBD
@@ -268,10 +300,22 @@ class StructuralDiff extends Diff {
     this.items = [item]
   }
 
+  /**
+   *
+   *
+   * @param {*} operation
+   * @memberof StructuralDiff
+   */
   setOperation (operation) {
     this.op = operation
   }
 
+  /**
+   *
+   *
+   * @param {*} item
+   * @memberof StructuralDiff
+   */
   addItem (item) {
     this.items.push(item)
   }
@@ -285,7 +329,9 @@ class StructuralDiff extends Diff {
 class ThreeDiff {
   /**
    *Creates an instance of ThreeDiff.
-   * @param {Array} listMechanicalOperations
+   * @param {*} listMechanicalOperations
+   * @param {*} oldText
+   * @param {*} newText
    * @memberof ThreeDiff
    */
   constructor (listMechanicalOperations, oldText, newText) {
@@ -320,7 +366,6 @@ class ThreeDiff {
       },
 
       // Word change
-      /*
       (leftDiff, rightDiff = null) => {
         let leftContext = leftDiff._getContext(this.newText)
 
@@ -328,9 +373,7 @@ class ThreeDiff {
         if (rightDiff != null) {
           let rightContext = rightDiff._getContext(this.newText)
 
-          // TODO check if the two diffs are inside the same word
-
-          return RegExp(regexp.wordchange).test(leftContext) && RegExp(regexp.wordchange).test(rightContext)
+          return (RegExp(regexp.wordchange).test(leftContext) && RegExp(regexp.wordchange).test(rightContext) && (leftContext === rightContext))
             ? diffType.structural.wordchange
             : false
         // One single diff
@@ -339,7 +382,7 @@ class ThreeDiff {
             ? diffType.structural.wordchange
             : false
         }
-      }, */
+      },
 
       // TextInsert or TextDelete. They work only with one parameter
       (leftDiff, rightDiff = null) =>
