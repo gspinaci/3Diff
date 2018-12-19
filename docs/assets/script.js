@@ -31,11 +31,11 @@ $('document').ready(function () {
  *
  * @param {*} text
  */
-const logMechanicalList = text => codeMechanicalList.html(text)
+const logMechanicalList = text => codeMechanicalList.text(text)
 
 /**
  *
  *
  * @param {*} text
  */
-const logStructuralList = text => codeStructuralList.html(text)
+const logStructuralList = text => codeStructuralList.text(text)
