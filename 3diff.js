@@ -11,7 +11,8 @@ const diffType = {
     punctuation: 'PUNCTUATION',
     textInsert: 'TEXTINSERT',
     textDelete: 'TEXTDELETE',
-    wordchange: 'WORDCHANGE'
+    wordchange: 'WORDCHANGE',
+    textReplace: 'TEXTREPLACE'
   },
   semantic: {
     id: 'semantic'
@@ -382,6 +383,17 @@ class ThreeDiff {
             ? diffType.structural.wordchange
             : false
         }
+      },
+
+      // Text replace
+      (leftDiff, rightDiff = null) => {
+        if (rightDiff === null) return false
+
+        return (leftDiff.content !== rightDiff.content &&
+        leftDiff.pos === rightDiff.pos &&
+        leftDiff.op !== rightDiff.op)
+          ? diffType.structural.textReplace
+          : false
       },
 
       // TextInsert or TextDelete. They work only with one parameter
