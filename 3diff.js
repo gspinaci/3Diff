@@ -373,6 +373,7 @@ class ThreeDiff {
       (leftDiff, rightDiff = null) => {
         // Only one diff that have at least one tag inside is accepted
         if (rightDiff !== null) return false
+        if (!RegExp(regexp.tagSelector).test(leftDiff.content)) return false
 
         let matches = []
         let match
