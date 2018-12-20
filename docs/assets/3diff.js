@@ -14,7 +14,8 @@ const diffType = {
     wordchange: 'WORDCHANGE',
     textReplace: 'TEXTREPLACE',
     insert: 'INSERT',
-    delete: 'DELETE'
+    delete: 'DELETE',
+    move: 'MOVE'
   },
   semantic: {
     id: 'semantic'
@@ -263,9 +264,9 @@ class Diff {
 
     if (this.op === diffType.mechanical.ins) { leftContext += this.content }
 
-    let contenxt = leftContext + rightContext
+    let context = leftContext + rightContext
 
-    return contenxt
+    return context
   }
 }
 
@@ -363,11 +364,15 @@ class ThreeDiff {
 
       // STRUCTURE OPERATIONS
 
+      // NOOP
+      (leftDiff, rightDiff = null) => {
+        return false
+      },
+
       // Insert / Delete
       (leftDiff, rightDiff = null) => {
         // Only one diff that have at least one tag inside is accepted
         if (rightDiff !== null) return false
-        if (!RegExp(regexp.tagSelector).test(leftDiff.content)) return false
 
         let matches = []
         let match
@@ -390,7 +395,7 @@ class ThreeDiff {
           ? diffType.structural.insert
           : diffType.structural.delete
 
-        let contentSelectorRegexp = RegExp(`^${regexp.textSelector}<${firstElementName}>${regexp.textSelector}</${secondElementName}>${regexp.textSelector}$`)
+        let contentSelectorRegexp = RegExp(`^${regexp.textSelector}<${firstElementName}>.*</${secondElementName}>${regexp.textSelector}$`)
 
         return contentSelectorRegexp.test(leftDiff.content)
           ? type
@@ -403,6 +408,10 @@ class ThreeDiff {
       (leftDiff, rightDiff = null) => {
         // Block un coupled diffs
         if (rightDiff === null) return false
+
+        // It must not cointains a tag
+        if (RegExp(regexp.tagSelector).test(leftDiff) && RegExp(regexp.tagSelector).test(leftDiff)) return false
+
         // Both contents must match the regex
         return (RegExp(regexp.punctuation).test(leftDiff.content) &&
           RegExp(regexp.punctuation).test(rightDiff.content)
@@ -421,16 +430,21 @@ class ThreeDiff {
       (leftDiff, rightDiff = null) => {
         let leftContext = leftDiff._getContext(this.newText)
 
+        // If leftDiff has a tag inside block
+        if (RegExp(regexp.tagSelector).test(leftDiff.content)) return false
+
         // Two diffs
         if (rightDiff != null) {
+          // If rightDiff has a tag inside block
+          if (RegExp(regexp.tagSelector).test(rightDiff.content)) return false
           let rightContext = rightDiff._getContext(this.newText)
 
-          return (RegExp(regexp.wordchange).test(leftContext) && RegExp(regexp.wordchange).test(rightContext) && (leftContext === rightContext))
+          return (leftContext !== '' && rightContext !== '') && (RegExp(regexp.wordchange).test(leftContext) && RegExp(regexp.wordchange).test(rightContext) && (leftContext === rightContext))
             ? diffType.structural.wordchange
             : false
         // One single diff
         } else {
-          return RegExp(regexp.wordchange).test(leftContext)
+          return (leftContext !== '') && RegExp(regexp.wordchange).test(leftContext)
             ? diffType.structural.wordchange
             : false
         }
