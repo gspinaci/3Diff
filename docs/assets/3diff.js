@@ -12,7 +12,9 @@ const diffType = {
     textInsert: 'TEXTINSERT',
     textDelete: 'TEXTDELETE',
     wordchange: 'WORDCHANGE',
-    textReplace: 'TEXTREPLACE'
+    textReplace: 'TEXTREPLACE',
+    insert: 'INSERT',
+    delete: 'DELETE'
   },
   semantic: {
     id: 'semantic'
@@ -29,9 +31,20 @@ const algorithms = {
 const regexp = {
   // A single punctuation with a optional following \s (space)
   // and an optional following A-z (capitalized or not character)
-  punctuation: /^\W[\s]?[A-z]?$/,
+  punctuation: '^\\W[\\s]?[A-z]?$',
+
   // No whitespaces
-  wordchange: /^\S*$/
+  wordchange: '^\\S*$',
+
+  // xml tags
+  tagSelector: '<[.A-z]?[^(><.)]+>',
+
+  // Text selector
+  textSelector: '[A-z\\s]*',
+
+  lowercaseLetter: '[a-z]+',
+
+  tagElements: '[<>/?]'
 }
 
 const TBD = 'TBD'
@@ -348,6 +361,44 @@ class ThreeDiff {
     // Initialise the structural rules
     this.structuralRules = [
 
+      // STRUCTURE OPERATIONS
+
+      // Insert / Delete
+      (leftDiff, rightDiff = null) => {
+        // Only one diff that have at least one tag inside is accepted
+        if (rightDiff !== null) return false
+        if (!RegExp(regexp.tagSelector).test(leftDiff.content)) return false
+
+        let matches = []
+        let match
+        let tagSelectorRegexp = RegExp(regexp.tagSelector, 'g')
+        while ((match = tagSelectorRegexp.exec(leftDiff.content)) !== null) {
+          matches.push(match[0])
+        }
+
+        // if the matches are not balanced
+        if (matches.length % 2 !== 0) return false
+
+        // Check if first and last elements are equals
+        // The first element can have also
+        let firstElementName = matches[0].replace(RegExp(regexp.tagElements, 'g'), '')
+        let secondElementName = matches[matches.length - 1].replace(RegExp(regexp.tagElements, 'g'), '')
+        if (firstElementName.split(/\s/)[0] !== secondElementName) return false
+
+        // Check type
+        let type = leftDiff.op === diffType.mechanical.ins
+          ? diffType.structural.insert
+          : diffType.structural.delete
+
+        let contentSelectorRegexp = RegExp(`^${regexp.textSelector}<${firstElementName}>${regexp.textSelector}</${secondElementName}>${regexp.textSelector}$`)
+
+        return contentSelectorRegexp.test(leftDiff.content)
+          ? type
+          : false
+      },
+
+      // TEXTUAL OPERATIONS
+
       // Punctuation
       (leftDiff, rightDiff = null) => {
         // Block un coupled diffs
@@ -384,6 +435,9 @@ class ThreeDiff {
             : false
         }
       },
+
+      // Word replace
+      (leftDiff, rightDiff = null) => false,
 
       // Text replace
       (leftDiff, rightDiff = null) => {
