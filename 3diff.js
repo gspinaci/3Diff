@@ -241,33 +241,6 @@ class Diff {
     }
     return id + lastId
   }
-
-  /**
-   *
-   *
-   * @param {*} newText
-   * @returns context
-   * @memberof Diff
-   *
-   *     = - = = = +
-   * eg: w o r l d s
-   *     0 1 2 3 4 5
-   */
-  _getContext (text) {
-    // Get left and right context
-    let leftContext = text.substring(0, this.pos)
-    let rightContext = text.substring(this.op === diffType.mechanical.ins ? this.pos + this.content.length : this.pos, text.length)
-
-    // Get only the current word
-    leftContext = leftContext.split(/\s/)[leftContext.split(/\s/).length - 1]
-    rightContext = rightContext.split(/\s/)[0]
-
-    if (this.op === diffType.mechanical.ins) { leftContext += this.content }
-
-    let context = leftContext + rightContext
-
-    return context
-  }
 }
 
 /**
@@ -290,6 +263,33 @@ class MechanicalDiff extends Diff {
     this.op = operation
     this.content = content
     this.pos = position
+  }
+
+  /**
+   *
+   *
+   * @param {*} newText
+   * @returns context
+   * @memberof Diff
+   *
+   *     = - = = = +
+   * eg: w o r l d s
+   *     0 1 2 3 4 5
+   */
+  _getWord (oldText, newText) {
+    // Get left and right context
+    let leftContext = newText.substring(0, this.pos)
+    let rightContext = newText.substring(this.op === diffType.mechanical.ins ? this.pos + this.content.length : this.pos, newText.length)
+
+    // Get only the current word
+    leftContext = leftContext.split(/\s/)[leftContext.split(/\s/).length - 1]
+    rightContext = rightContext.split(/\s/)[0]
+
+    if (this.op === diffType.mechanical.ins) { leftContext += this.content }
+
+    let context = leftContext + rightContext
+
+    return context
   }
 }
 
@@ -364,17 +364,27 @@ class ThreeDiff {
 
       // STRUCTURE OPERATIONS
 
-      // NOOP
+      /**
+       * NOOP
+       *
+       * ONE PARAMETER
+       * A textual
+       */
       (leftDiff, rightDiff = null) => {
         return false
       },
 
-      // Insert / Delete
+      /**
+       * INSERT || DELETE
+       *
+       * Similar to TEXTINSERT || TEXDELETE, but in this case we need a balanced tree
+       */
       (leftDiff, rightDiff = null) => {
         // Only one diff that have at least one tag inside is accepted
         if (rightDiff !== null) return false
         if (!RegExp(regexp.tagSelector).test(leftDiff.content)) return false
 
+        // Get the matching tags
         let matches = []
         let match
         let tagSelectorRegexp = RegExp(regexp.tagSelector, 'g')
@@ -405,7 +415,13 @@ class ThreeDiff {
 
       // TEXTUAL OPERATIONS
 
-      // Punctuation
+      /**
+       * PUNCTUATION
+       *
+       * NOTE: must be two diffs
+       * They are changes over the only punctuations without affecting the real text.
+       * They can have optionally a follwing space and a letter
+       */
       (leftDiff, rightDiff = null) => {
         // Block un coupled diffs
         if (rightDiff === null) return false
@@ -427,9 +443,39 @@ class ThreeDiff {
           : false
       },
 
-      // Word change
+      /**
+       * WORDREPLACE
+       *
+       * TBD
+       */
+      (leftDiff, rightDiff = null) => false,
+
+      /**
+       * TEXTREPLACE
+       *
+       * NOTE: only two parameters
+       * If the position of two diffs are the same, the content and the operation are different
+       */
       (leftDiff, rightDiff = null) => {
-        let leftContext = leftDiff._getContext(this.newText)
+        if (rightDiff === null) return false
+
+        return (leftDiff.content !== rightDiff.content &&
+        leftDiff.pos === rightDiff.pos &&
+        leftDiff.op !== rightDiff.op)
+          ? diffType.structural.textReplace
+          : false
+      },
+
+      /**
+       * WORDCHANGE
+       *
+       * NOTE: can be one or more diffs
+       * First the method tries to gather the word in which the diff is contained and tag it as a wordchange
+       * If the diffs are two, it takes the context without diffs and check if they're equals. If so, it is a wordchange
+       */
+      (leftDiff, rightDiff = null) => {
+        // Gather the context of the leftDiff
+        let leftContext = leftDiff._getWord(this.oldText, this.newText)
 
         // If leftDiff has a tag inside block
         if (RegExp(regexp.tagSelector).test(leftDiff.content)) return false
@@ -438,7 +484,7 @@ class ThreeDiff {
         if (rightDiff != null) {
           // If rightDiff has a tag inside block
           if (RegExp(regexp.tagSelector).test(rightDiff.content)) return false
-          let rightContext = rightDiff._getContext(this.newText)
+          let rightContext = rightDiff._getWord(this.oldText, this.newText)
 
           return (leftContext !== '' && rightContext !== '') && (RegExp(regexp.wordchange).test(leftContext) && RegExp(regexp.wordchange).test(rightContext) && (leftContext === rightContext))
             ? diffType.structural.wordchange
@@ -451,21 +497,12 @@ class ThreeDiff {
         }
       },
 
-      // Word replace
-      (leftDiff, rightDiff = null) => false,
-
-      // Text replace
-      (leftDiff, rightDiff = null) => {
-        if (rightDiff === null) return false
-
-        return (leftDiff.content !== rightDiff.content &&
-        leftDiff.pos === rightDiff.pos &&
-        leftDiff.op !== rightDiff.op)
-          ? diffType.structural.textReplace
-          : false
-      },
-
-      // TextInsert or TextDelete. They work only with one parameter
+      /**
+       * TEXTINSERT || TEXTDELETE
+       *
+       * NOTE: only one parameter
+       * If the previous rules don't match, this will match
+       */
       (leftDiff, rightDiff = null) =>
         rightDiff === null
           ? leftDiff.op === diffType.mechanical.ins ? diffType.structural.textInsert : diffType.structural.textDelete
@@ -504,7 +541,7 @@ class ThreeDiff {
         for (let rule of this.structuralRules) {
           // If the current rule matches
           let ruleResult = rule(leftDiff, rightDiff)
-          if (ruleResult !== false) {
+          if (this._checkRuleResulCorrectness(ruleResult)) {
             // Update operation type
             structuralDiff.setOperation(ruleResult)
 
@@ -528,7 +565,7 @@ class ThreeDiff {
         for (let rule of this.structuralRules) {
           // Try the rules
           let ruleResult = rule(leftDiff)
-          if (ruleResult !== false) {
+          if (this._checkRuleResulCorrectness(ruleResult)) {
             // Update operation type
             structuralDiff.setOperation(ruleResult)
 
@@ -540,6 +577,20 @@ class ThreeDiff {
       // Append the structural operation
       this.listStructuralOperations.push(structuralDiff)
     }
+  }
+
+  _checkRuleResulCorrectness (result) {
+    // Check if the result is not false
+    if (result === false) return false
+
+    // Check if the result is not null
+    if (result === null) return false
+
+    // Check if the result is not undefined
+    if (typeof result === 'undefined') return false
+
+    // Otherwise return true
+    return true
   }
 
   /**
