@@ -15,7 +15,8 @@ const diffType = {
     textReplace: 'TEXTREPLACE',
     insert: 'INSERT',
     delete: 'DELETE',
-    move: 'MOVE'
+    move: 'MOVE',
+    NOOP: 'noop'
   },
   semantic: {
     id: 'semantic'
@@ -39,6 +40,10 @@ const regexp = {
 
   // xml tags
   tagSelector: '<[.A-z]?[^(><.)]+>',
+
+  // unclosed
+  unclosedTagSelector: '<[.A-z]?[^(><.)]+',
+  unopenedTagSelector: '[.A-z]?[^(><.)]+>',
 
   // Text selector
   textSelector: '[A-z\\s]*',
@@ -148,8 +153,6 @@ class DiffMatchPatchAdapter extends Adapter {
     // Get Patches
     // https://github.com/google/diff-match-patch/wiki/API#patch_makediffs--patches
     this.patches = dmp.patch_make(this.diffs)
-
-    console.log(this.patches)
 
     // Execute the run algorithm
     this.runDiffAlgorithm()
@@ -282,7 +285,7 @@ class MechanicalDiff extends Diff {
    * eg: w o r l d s
    *     0 1 2 3 4 5
    */
-  _getWord (text) {
+  getWord (text) {
     // Get left and right context
     let leftContext = text.substring(0, this.pos)
     let rightContext = text.substring(this.op === diffType.mechanical.ins ? this.pos + this.content.length : this.pos, text.length)
@@ -296,6 +299,33 @@ class MechanicalDiff extends Diff {
     let context = leftContext + rightContext
 
     return context
+  }
+
+  /**
+   *
+   *
+   * @param {*} text
+   * @memberof MechanicalDiff
+   */
+  getTag (newText, oldText) {
+    let newTextSplitted = newText.split(this.content)
+    let oldTextSplitted = oldText.split(this.content)
+
+    let returnElement = { diff: this }
+    if (newTextSplitted.length > 1) {
+      returnElement.left = newTextSplitted[0]
+      returnElement.right = newTextSplitted[1]
+    } else {
+      returnElement.left = oldTextSplitted[0]
+      returnElement.right = oldTextSplitted[1]
+    }
+
+    console.log(RegExp(regexp.unclosedTagSelector, 'g').exec(returnElement.left))
+
+    // returnElement.left = returnElement.left.split(RegExp(regexp.unclosedTagSelector, 'g'))[0]
+    // returnElement.right = returnElement.right.split(RegExp(regexp.unopenedTagSelector, 'g'))[0]
+
+    return returnElement
   }
 }
 
@@ -377,7 +407,25 @@ class ThreeDiff {
        * A textual
        */
       (leftDiff, rightDiff = null) => {
-        return false
+        // Block single diff
+        if (rightDiff === null) { return false }
+
+        // Get a JSON object with contexts
+        let leftDiffContext = leftDiff.getTag(this.newText, this.oldText)
+        let rightDiffContext = rightDiff.getTag(this.newText, this.oldText)
+
+        // Concatenate context strings
+        let leftDiffString = leftDiffContext.left + leftDiffContext.diff.content + rightDiffContext.right
+        let rightDiffString = rightDiffContext.left + rightDiffContext.diff.content + rightDiffContext.right
+
+        // If the contexts contains a tag is a NOOP
+        if (RegExp(regexp.tagSelector).test(leftDiffString) && RegExp(regexp.tagSelector).test(rightDiffString)) {
+          if (leftDiffContext.left === rightDiffContext.left && leftDiffContext.right === rightDiffContext.right) {
+            return diffType.structural.NOOP
+          } else {
+            return false
+          }
+        } else { return false }
       },
 
       /**
@@ -481,7 +529,7 @@ class ThreeDiff {
        */
       (leftDiff, rightDiff = null) => {
         // Gather the context of the leftDiff
-        let leftContext = leftDiff._getWord(this.newText)
+        let leftContext = leftDiff.getWord(this.newText)
 
         // If leftDiff has a tag inside block
         if (RegExp(regexp.tagSelector).test(leftDiff.content)) return false
@@ -490,7 +538,7 @@ class ThreeDiff {
         if (rightDiff != null) {
           // If rightDiff has a tag inside block
           if (RegExp(regexp.tagSelector).test(rightDiff.content)) return false
-          let rightContext = rightDiff._getWord(this.newText)
+          let rightContext = rightDiff.getWord(this.newText)
 
           return (leftContext !== '' && rightContext !== '') && (RegExp(regexp.wordchange).test(leftContext) && RegExp(regexp.wordchange).test(rightContext) && (leftContext === rightContext))
             ? diffType.structural.wordchange
