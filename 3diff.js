@@ -584,54 +584,27 @@ class ThreeDiff {
       this.listStructuralOperations.push(structuralDiff)
     }
 
-    /*
-    _getOldNew (text) {
-    // Check if the text contains the diff
-    let newText = ''
-    let oldText = ''
+    this._setOldsNews()
+  }
 
-    // The fixed length that will be used for retrieve the smallest amount of context
-    const fixedLength = 10
-
-    const initPos = this.pos
-    const endPos = this.pos + this.content.length
-
-    const minPos = initPos < fixedLength ? 0 : fixedLength
-    const maxPos = endPos + fixedLength < text.length ? endPos + fixedLength : text.length
-
-    let leftContext = text.substring(minPos, initPos).split(/\s/)
-    let rightContext = text.substring(endPos, maxPos).split(/\s/)
-
-    // Last element
-    leftContext = leftContext[leftContext.length - 1]
-    // Left element
-    rightContext = rightContext[0]
-
-    // If th diff is an INS
-    if (this.op === diffType.mechanical.ins) {
-      newText = leftContext + this.content + rightContext
-      oldText = leftContext + rightContext
-    } else {
-      oldText = leftContext + this.content + rightContext
-      newText = leftContext + rightContext
-    }
-
-    return {
-      old: oldText,
-      new: newText
-    }
-  } */
-
+  /**
+   *
+   *
+   * @memberof ThreeDiff
+   */
+  _setOldsNews () {
     for (let structuralOperation of this.listStructuralOperations) {
-      const tmp = this._minMax(structuralOperation.items)
+      // Create a reference to the items
+      let items = structuralOperation.items
 
-      // NewText
-      let newTextBoundaries = this._getContextBoundaries(this.newText, tmp[0], tmp[1])
+      // Get first and last diff
+      let newTextBoundaries = this._getContextBoundariesNew(this.newText, items[0], items[items.length - 1])
 
+      // Create the new text
       let newText = newTextBoundaries.leftContext
-      structuralOperation.items.map((diff, index) => {
+      items.map((diff, index) => {
         // Save reference to the next diff
-        let nextDiff = structuralOperation.items[index + 1]
+        let nextDiff = items[index + 1]
 
         // If is an insert save it
         if (diff.op === diffType.mechanical.ins) {
@@ -649,20 +622,19 @@ class ThreeDiff {
       })
 
       newText += newTextBoundaries.rightContext
-      structuralOperation.new = newText
 
       // OldText
-      let oldTextBoundaries = this._getContextBoundaries(this.oldText, tmp[0], tmp[1])
+      let oldTextBoundaries = this._getContextBoundariesOld(this.oldText, items[0], items[items.length - 1])
 
       let oldText = oldTextBoundaries.leftContext
-      structuralOperation.items.map((diff, index) => {
+      items.map((diff, index) => {
         // Save reference to the next diff
-        let nextDiff = structuralOperation.items[index + 1]
+        let nextDiff = items[index + 1]
 
         // If is an insert don't save
         if (diff.op === diffType.mechanical.ins) {
           if (typeof nextDiff !== 'undefined') {
-            oldText += this.oldText.substring(diff.pos + diff.content.length, nextDiff.pos)
+            oldText += this.oldText.substring(diff.pos, nextDiff.pos - diff.content.length)
           }
           // Else don't save it
         } else {
@@ -674,23 +646,11 @@ class ThreeDiff {
       })
 
       oldText += newTextBoundaries.rightContext
+
+      // Save the text
+      structuralOperation.new = newText
       structuralOperation.old = oldText
     }
-  }
-
-  /**
-   *
-   *
-   * @param {*} items
-   * @returns
-   * @memberof ThreeDiff
-   */
-  _minMax (items) {
-    return items.reduce((acc, val) => {
-      acc[0] = (acc[0] === undefined || val.pos < acc[0].pos) ? val : acc[0]
-      acc[1] = (acc[1] === undefined || val.pos > acc[1].pos) ? val : acc[1]
-      return acc
-    }, [])
   }
 
   /**
@@ -702,12 +662,40 @@ class ThreeDiff {
    * @returns
    * @memberof ThreeDiff
    */
-  _getContextBoundaries (text, minDiff, maxDiff) {
+  _getContextBoundariesNew (text, minDiff, maxDiff) {
     // The fixed length that will be used for retrieve the smallest amount of context
     const fixedLength = 10
 
     const initPos = minDiff.pos
-    const endPos = maxDiff.pos + maxDiff.content.length
+    const endPos = maxDiff.pos + (maxDiff.op === diffType.mechanical.ins ? maxDiff.content.length : 0)
+
+    const minPos = initPos < fixedLength ? 0 : fixedLength
+    const maxPos = endPos + fixedLength < text.length ? endPos + fixedLength : text.length
+
+    let leftContext = text.substring(minPos, initPos).split(/\s/)
+    let rightContext = text.substring(endPos, maxPos).split(/\s/)
+
+    return {
+      leftContext: leftContext[leftContext.length - 1],
+      rightContext: rightContext[0]
+    }
+  }
+
+  /**
+   *
+   *
+   * @param {*} text
+   * @param {*} minDiff
+   * @param {*} maxDiff
+   * @returns
+   * @memberof ThreeDiff
+   */
+  _getContextBoundariesOld (text, minDiff, maxDiff) {
+    // The fixed length that will be used for retrieve the smallest amount of context
+    const fixedLength = 10
+
+    const initPos = minDiff.pos
+    const endPos = maxDiff.pos + (maxDiff.op === diffType.mechanical.del ? maxDiff.content.length : 0)
 
     const minPos = initPos < fixedLength ? 0 : fixedLength
     const maxPos = endPos + fixedLength < text.length ? endPos + fixedLength : text.length
