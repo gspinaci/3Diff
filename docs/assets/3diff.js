@@ -18,7 +18,9 @@ const diffType = {
     move: 'MOVE',
     noop: 'NOOP',
     wrap: 'WRAP',
-    unwrap: 'UNWRAP'
+    unwrap: 'UNWRAP',
+    split: 'SPLIT',
+    join: 'JOIN'
   },
   semantic: {
     id: 'semantic'
@@ -52,7 +54,9 @@ const regexp = {
 
   lowercaseLetter: '[a-z]+',
 
-  tagElements: '[<>/?]'
+  tagElements: '[<>/?]',
+
+  splitJoin: '^[\\s]*<[.A-z]?[^(><.)]+><[.A-z]?[^(><.)]+>[\\s]*$'
 }
 
 const TBD = 'TBD'
@@ -441,10 +445,30 @@ class ThreeDiff {
         // Get indexes
         let minIndex = Math.min(leftDiff.pos + leftDiff.content.length, rightDiff.pos + rightDiff.content.length)
         let maxIndex = Math.max(leftDiff.pos, rightDiff.pos)
-
         let wrapContent = text.substring(minIndex, maxIndex)
 
         return leftDiff.op === diffType.mechanical.ins ? diffType.structural.wrap : diffType.structural.unwrap
+      },
+
+      /**
+       * JOIN/SPLIT
+       */
+      (leftDiff, rightDiff = null) => {
+        // Must be only a diff
+        if (rightDiff !== null) { return false }
+
+        // Must be in this way <tag></tag> or </tag><tag> with optional space
+        if (!RegExp(regexp.splitJoin).test(leftDiff.content)) { return false }
+
+        // TODO check balance
+        let matches = []
+        let match
+        let tagSelectorRegexp = RegExp(regexp.tagSelector, 'g')
+        while ((match = tagSelectorRegexp.exec(leftDiff.content)) !== null) {
+          matches.push(match[0])
+        }
+
+        return leftDiff.op === diffType.mechanical.ins ? diffType.structural.split : diffType.structural.join
       },
 
       /**
