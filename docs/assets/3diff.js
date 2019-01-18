@@ -16,7 +16,7 @@ const diffType = {
     insert: 'INSERT',
     delete: 'DELETE',
     move: 'MOVE',
-    NOOP: 'noop'
+    noop: 'NOOP'
   },
   semantic: {
     id: 'semantic'
@@ -400,6 +400,14 @@ class ThreeDiff {
 
       // STRUCTURE OPERATIONS
 
+      // MOVE
+      (leftDiff, rightDiff = null) => {
+        // Block single diff
+        if (rightDiff === null) { return false }
+
+        return rightDiff.content.trim() === leftDiff.content.trim() && rightDiff.pos !== leftDiff.pos && leftDiff.op !== rightDiff.op ? diffType.structural.move : false
+      },
+
       /**
        * NOOP
        *
@@ -421,7 +429,7 @@ class ThreeDiff {
         // If the contexts contains a tag is a NOOP
         if (RegExp(regexp.tagSelector).test(leftDiffString) && RegExp(regexp.tagSelector).test(rightDiffString)) {
           if (leftDiffContext.left === rightDiffContext.left && leftDiffContext.right === rightDiffContext.right) {
-            return diffType.structural.NOOP
+            return diffType.structural.noop
           } else {
             return false
           }
