@@ -16,7 +16,9 @@ const diffType = {
     insert: 'INSERT',
     delete: 'DELETE',
     move: 'MOVE',
-    noop: 'NOOP'
+    noop: 'NOOP',
+    wrap: 'WRAP',
+    unwrap: 'UNWRAP'
   },
   semantic: {
     id: 'semantic'
@@ -398,14 +400,51 @@ class ThreeDiff {
     // Initialise the structural rules
     this.structuralRules = [
 
-      // STRUCTURE OPERATIONS
+      // OPERATIONS OVER STRUCTURE
 
-      // MOVE
+      /**
+       * MOVE
+       *
+       * Two params
+       * Is a MOVE if and only if the DEL and INS contents are equal and the pos different
+       */
       (leftDiff, rightDiff = null) => {
         // Block single diff
         if (rightDiff === null) { return false }
 
-        return rightDiff.content.trim() === leftDiff.content.trim() && rightDiff.pos !== leftDiff.pos && leftDiff.op !== rightDiff.op ? diffType.structural.move : false
+        return rightDiff.content.trim() === leftDiff.content.trim() &&
+        rightDiff.pos !== leftDiff.pos &&
+        leftDiff.op !== rightDiff.op
+          ? diffType.structural.move
+          : false
+      },
+
+      /**
+       * WRAP / UNWRAP
+       */
+      (leftDiff, rightDiff = null) => {
+        if (rightDiff === null) { return false }
+
+        // If the two diffs are not tags block
+        if ((!RegExp(regexp.tagSelector).test(leftDiff.content) && !RegExp(regexp.tagSelector).test(rightDiff.content)) && (leftDiff.op === rightDiff.op)) { return false }
+
+        // If the two tags are equal
+        let leftDiffTagName = leftDiff.content.replace(RegExp(regexp.tagElements, 'g'), '')
+        let rightDiffTagName = rightDiff.content.replace(RegExp(regexp.tagElements, 'g'), '')
+        if (leftDiffTagName !== rightDiffTagName) return false
+
+        // Get the text: if it's a wrap (two ins), the text is new. or viceversa
+        let text = leftDiff.op === diffType.mechanical.ins ? this.newText : this.oldText
+
+        // TODO check if balanced
+
+        // Get indexes
+        let minIndex = Math.min(leftDiff.pos + leftDiff.content.length, rightDiff.pos + rightDiff.content.length)
+        let maxIndex = Math.max(leftDiff.pos, rightDiff.pos)
+
+        let wrapContent = text.substring(minIndex, maxIndex)
+
+        return leftDiff.op === diffType.mechanical.ins ? diffType.structural.wrap : diffType.structural.unwrap
       },
 
       /**
@@ -475,7 +514,7 @@ class ThreeDiff {
           : false
       },
 
-      // TEXTUAL OPERATIONS
+      // OPERATIONS OVER TEXT
 
       /**
        * PUNCTUATION
