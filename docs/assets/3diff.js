@@ -37,7 +37,7 @@ const algorithms = {
 const regexp = {
   // A single punctuation with a optional following \s (space)
   // and an optional following A-z (capitalized or not character)
-  punctuation: '^\\W[\\s]?[A-z]?$',
+  punctuation: '^[\\!\\"\\#\\$\\%\\&\'\\(\\)\\*\\+\\,\\-\\.\\/\\:\\;\\<\\=\\>\\?\\@\\[\\]\\^\\_\\`\\{\\|\\}\\~ ]?[A-z]?$',
 
   // No whitespaces
   wordchange: '^\\S*$',
@@ -407,6 +407,34 @@ class ThreeDiff {
       // OPERATIONS OVER STRUCTURE
 
       /**
+       * NOOP
+       *
+       * ONE PARAMETER
+       * A textual
+       */
+      (leftDiff, rightDiff = null) => {
+        // Block single diff
+        if (rightDiff === null) { return false }
+
+        // Get a JSON object with contexts
+        let leftDiffContext = leftDiff.getTag(this.newText, this.oldText)
+        let rightDiffContext = rightDiff.getTag(this.newText, this.oldText)
+
+        // Concatenate context strings
+        let leftDiffString = leftDiffContext.left + leftDiffContext.diff.content + rightDiffContext.right
+        let rightDiffString = rightDiffContext.left + rightDiffContext.diff.content + rightDiffContext.right
+
+        // If the contexts contains a tag is a NOOP
+        if (RegExp(regexp.tagSelector).test(leftDiffString) && RegExp(regexp.tagSelector).test(rightDiffString)) {
+          if (leftDiffContext.left === rightDiffContext.left && leftDiffContext.right === rightDiffContext.right) {
+            return diffType.structural.noop
+          } else {
+            return false
+          }
+        } else { return false }
+      },
+
+      /**
        * MOVE
        *
        * Two params
@@ -460,6 +488,8 @@ class ThreeDiff {
         // Must be in this way <tag></tag> or </tag><tag> with optional space
         if (!RegExp(regexp.splitJoin).test(leftDiff.content)) { return false }
 
+        // TODO check if parent is the same element
+
         // TODO check balance
         let matches = []
         let match
@@ -469,34 +499,6 @@ class ThreeDiff {
         }
 
         return leftDiff.op === diffType.mechanical.ins ? diffType.structural.split : diffType.structural.join
-      },
-
-      /**
-       * NOOP
-       *
-       * ONE PARAMETER
-       * A textual
-       */
-      (leftDiff, rightDiff = null) => {
-        // Block single diff
-        if (rightDiff === null) { return false }
-
-        // Get a JSON object with contexts
-        let leftDiffContext = leftDiff.getTag(this.newText, this.oldText)
-        let rightDiffContext = rightDiff.getTag(this.newText, this.oldText)
-
-        // Concatenate context strings
-        let leftDiffString = leftDiffContext.left + leftDiffContext.diff.content + rightDiffContext.right
-        let rightDiffString = rightDiffContext.left + rightDiffContext.diff.content + rightDiffContext.right
-
-        // If the contexts contains a tag is a NOOP
-        if (RegExp(regexp.tagSelector).test(leftDiffString) && RegExp(regexp.tagSelector).test(rightDiffString)) {
-          if (leftDiffContext.left === rightDiffContext.left && leftDiffContext.right === rightDiffContext.right) {
-            return diffType.structural.noop
-          } else {
-            return false
-          }
-        } else { return false }
       },
 
       /**
@@ -548,24 +550,20 @@ class ThreeDiff {
        * They can have optionally a follwing space and a letter
        */
       (leftDiff, rightDiff = null) => {
-        // Block un coupled diffs
-        if (rightDiff === null) return false
+        // Block uncoupled diffs
+        if (rightDiff === null) { return false }
 
-        // It must not cointains a tag
-        if (RegExp(regexp.tagSelector).test(leftDiff) && RegExp(regexp.tagSelector).test(leftDiff)) return false
+        // Block diffs with different position
+        if (leftDiff.pos !== rightDiff.pos) { return false }
+
+        // Block diffs with same operation
+        if (leftDiff.op === rightDiff.op) { return false }
+
+        // Both content must match the punctuation regexp
+        if (!RegExp(regexp.punctuation).test(leftDiff.content) || !RegExp(regexp.punctuation).test(rightDiff.content)) { return false }
 
         // Both contents must match the regex
-        return (RegExp(regexp.punctuation).test(leftDiff.content) &&
-          RegExp(regexp.punctuation).test(rightDiff.content)
-        ) &&
-
-        // Positions must be equal
-        (leftDiff.pos === rightDiff.pos) &&
-
-        // Operations must be different
-        (leftDiff.op !== rightDiff.op)
-          ? diffType.structural.punctuation
-          : false
+        return diffType.structural.punctuation
       },
 
       /**
@@ -599,27 +597,31 @@ class ThreeDiff {
        * If the diffs are two, it takes the context without diffs and check if they're equals. If so, it is a wordchange
        */
       (leftDiff, rightDiff = null) => {
+        // Block couple of diffs
+        if (rightDiff !== null) { return false }
+
         // Gather the context of the leftDiff
         let leftContext = leftDiff.getWord(this.newText)
 
-        // If leftDiff has a tag inside block
-        if (RegExp(regexp.tagSelector).test(leftDiff.content)) return false
+        if (!RegExp(regexp.wordchange).test(leftContext)) { return false }
 
-        // Two diffs
-        if (rightDiff != null) {
-          // If rightDiff has a tag inside block
-          if (RegExp(regexp.tagSelector).test(rightDiff.content)) return false
-          let rightContext = rightDiff.getWord(this.newText)
+        return diffType.structural.wordchange
+      },
 
-          return (leftContext !== '' && rightContext !== '') && (RegExp(regexp.wordchange).test(leftContext) && RegExp(regexp.wordchange).test(rightContext) && (leftContext === rightContext))
-            ? diffType.structural.wordchange
-            : false
-        // One single diff
-        } else {
-          return (leftContext !== '') && RegExp(regexp.wordchange).test(leftContext)
-            ? diffType.structural.wordchange
-            : false
-        }
+      (leftDiff, rightDiff = null) => {
+        // Block uncoupled diff
+        if (rightDiff === null) { return false }
+
+        // Gather the context of the leftDiff
+        let leftContext = leftDiff.getWord(this.newText)
+
+        // If rightDiff has a tag inside block
+        if (RegExp(regexp.tagSelector).test(rightDiff.content)) return false
+        let rightContext = rightDiff.getWord(this.newText)
+
+        return (leftContext !== '' && rightContext !== '') && (RegExp(regexp.wordchange).test(leftContext) && RegExp(regexp.wordchange).test(rightContext) && (leftContext === rightContext))
+          ? diffType.structural.wordchange
+          : false
       },
 
       /**
@@ -683,6 +685,8 @@ class ThreeDiff {
             break
           }
         }
+
+        if (structuralDiff.op !== diffType.structural.wordchange) break
       }
 
       // Try all rules on only left diff
