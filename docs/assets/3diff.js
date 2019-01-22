@@ -38,7 +38,7 @@ const algorithms = {
 const regexp = {
   // A single punctuation with a optional following \s (space)
   // and an optional following A-z (capitalized or not character)
-  punctuation: '^[\\!\\"\\#\\$\\%\\&\'\\(\\)\\*\\+\\,\\-\\.\\/\\:\\;\\=\\?\\@\\[\\]\\^\\_\\`\\{\\|\\}\\~ ]+[A-z]?$',
+  punctuation: '^[\\!\\"\\#\\$\\%\\&\'\\(\\)\\*\\+\\,\\-\\.\\/\\:\\;\\=\\?\\@\\[\\]\\^\\_\\`\\{\\|\\}\\~ ]?[A-z]?$',
 
   // No whitespaces
   wordchange: '^\\S*$',
