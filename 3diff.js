@@ -605,19 +605,20 @@ class ThreeDiff {
        * NOTE: can be one or more diffs
        * First the method tries to gather the word in which the diff is contained and tag it as a wordchange
        * If the diffs are two, it takes the context without diffs and check if they're equals. If so, it is a wordchange
-
+       */
       (leftDiff, rightDiff = null) => {
         // Block couple of diffs
         if (rightDiff !== null) { return false }
 
         // Gather the context of the leftDiff
-        let leftContext = leftDiff.getWord(this.oldText, this.newText)
+        let leftDiffContext = leftDiff.getWord(this.newText)
 
-        if (!RegExp(regexp.wordchange).test(leftContext)) { return false }
+        // If both context are without spaces
+        if (!RegExp(regexp.wordchange).test(leftDiffContext)) return false
 
         return diffType.structural.wordchange
       },
- */
+
       /**
        * WORDCHANGE 2 DIFF
        *
