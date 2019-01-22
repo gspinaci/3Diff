@@ -20,7 +20,8 @@ const diffType = {
     wrap: 'WRAP',
     unwrap: 'UNWRAP',
     split: 'SPLIT',
-    join: 'JOIN'
+    join: 'JOIN',
+    replace: 'REPLACE'
   },
   semantic: {
     id: 'semantic'
@@ -37,7 +38,7 @@ const algorithms = {
 const regexp = {
   // A single punctuation with a optional following \s (space)
   // and an optional following A-z (capitalized or not character)
-  punctuation: '^[\\!\\"\\#\\$\\%\\&\'\\(\\)\\*\\+\\,\\-\\.\\/\\:\\;\\<\\=\\>\\?\\@\\[\\]\\^\\_\\`\\{\\|\\}\\~ ]?[A-z]?$',
+  punctuation: '^[\\!\\"\\#\\$\\%\\&\'\\(\\)\\*\\+\\,\\-\\.\\/\\:\\;\\=\\?\\@\\[\\]\\^\\_\\`\\{\\|\\}\\~ ]+[A-z]?$',
 
   // No whitespaces
   wordchange: '^\\S*$',
@@ -313,25 +314,17 @@ class MechanicalDiff extends Diff {
    * @param {*} text
    * @memberof MechanicalDiff
    */
-  getTag (newText, oldText) {
-    let newTextSplitted = newText.split(this.content)
-    let oldTextSplitted = oldText.split(this.content)
+  isEnclosedInTag (oldText, newText) {
+    // If the operation is a INS, the diff's content is the new text.
+    // If the operation is a DEL, the diff's content is the old text.
+    let text = this.op === diffType.mechanical.ins ? oldText : newText
 
-    let returnElement = { diff: this }
-    if (newTextSplitted.length > 1) {
-      returnElement.left = newTextSplitted[0]
-      returnElement.right = newTextSplitted[1]
-    } else {
-      returnElement.left = oldTextSplitted[0]
-      returnElement.right = oldTextSplitted[1]
-    }
+    // Set left and right selector
+    const left = '<[A-z]+[A-z\\d\\=\\"\\s]*'
+    const right = '[A-z\\d\\=\\"\\s]*>'
 
-    console.log(RegExp(regexp.unclosedTagSelector, 'g').exec(returnElement.left))
-
-    // returnElement.left = returnElement.left.split(RegExp(regexp.unclosedTagSelector, 'g'))[0]
-    // returnElement.right = returnElement.right.split(RegExp(regexp.unopenedTagSelector, 'g'))[0]
-
-    return returnElement
+    // Check if the diff is inside a tag
+    return RegExp(`${left}${this.content}${right}`).test(text)
   }
 }
 
@@ -409,29 +402,22 @@ class ThreeDiff {
       /**
        * NOOP
        *
-       * ONE PARAMETER
-       * A textual
        */
       (leftDiff, rightDiff = null) => {
         // Block single diff
-        if (rightDiff === null) { return false }
+        if (rightDiff === null) return false
 
-        // Get a JSON object with contexts
-        let leftDiffContext = leftDiff.getTag(this.newText, this.oldText)
-        let rightDiffContext = rightDiff.getTag(this.newText, this.oldText)
+        // Check if both diffs are enclosed in a tag
+        let leftDiffTag = leftDiff.isEnclosedInTag(this.newText, this.oldText)
+        let rightDiffTag = rightDiff.isEnclosedInTag(this.newText, this.oldText)
 
-        // Concatenate context strings
-        let leftDiffString = leftDiffContext.left + leftDiffContext.diff.content + rightDiffContext.right
-        let rightDiffString = rightDiffContext.left + rightDiffContext.diff.content + rightDiffContext.right
+        // If both diffs are enclosed in a tag
+        if (!leftDiffTag || !rightDiffTag) return false
 
-        // If the contexts contains a tag is a NOOP
-        if (RegExp(regexp.tagSelector).test(leftDiffString) && RegExp(regexp.tagSelector).test(rightDiffString)) {
-          if (leftDiffContext.left === rightDiffContext.left && leftDiffContext.right === rightDiffContext.right) {
-            return diffType.structural.noop
-          } else {
-            return false
-          }
-        } else { return false }
+        // If the two diffs have equal content
+        if (leftDiff.content !== rightDiff.content) return false
+
+        return diffType.structural.noop
       },
 
       /**
@@ -499,6 +485,23 @@ class ThreeDiff {
         }
 
         return leftDiff.op === diffType.mechanical.ins ? diffType.structural.split : diffType.structural.join
+      },
+
+      /**
+       * REPLACE
+       */
+      (leftDiff, rightDiff = null) => {
+        // Block single diff
+        if (rightDiff === null) return false
+
+        // Check if both diffs are enclosed in a tag
+        let leftDiffTag = leftDiff.isEnclosedInTag(this.newText, this.oldText)
+        let rightDiffTag = rightDiff.isEnclosedInTag(this.newText, this.oldText)
+
+        // If both diffs are enclosed in a tag
+        if (!leftDiffTag || !rightDiffTag) return false
+
+        return diffType.structural.replace
       },
 
       /**
@@ -686,7 +689,9 @@ class ThreeDiff {
           }
         }
 
-        if (structuralDiff.op !== diffType.structural.wordchange) break
+        if (
+          structuralDiff.op !== diffType.structural.wordchange ||
+          structuralDiff.op !== diffType.structural.replace) break
       }
 
       // Try all rules on only left diff
@@ -707,7 +712,7 @@ class ThreeDiff {
       this.listStructuralOperations.push(structuralDiff)
     }
 
-    this._setOldsNews()
+    // this._setOldsNews()
   }
 
   /**
