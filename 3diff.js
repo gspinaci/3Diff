@@ -253,10 +253,6 @@ class Diff {
     }
     return id + lastId
   }
-
-  getText (oldText, newText) {
-    return newText
-  }
 }
 
 /**
@@ -293,19 +289,20 @@ class MechanicalDiff extends Diff {
    *     0 1 2 3 4 5
    */
   getWord (text) {
-    // Get left and right context
-    let leftContext = text.substring(0, this.pos)
-    let rightContext = text.substring(this.op === diffType.mechanical.ins ? this.pos + this.content.length : this.pos, text.length)
+    // Update the context
+    let context = this._getContexts(text)
 
-    // Get only the current word
-    leftContext = leftContext.split(/\s/)[leftContext.split(/\s/).length - 1]
-    rightContext = rightContext.split(/\s/)[0]
+    // Split by whitespaces
+    context.left = context.left.split(/\s/).splice(-1)[0]
+    context.right = context.right.split(/\s/)[0]
 
-    if (this.op === diffType.mechanical.ins) { leftContext += this.content }
+    // Split by tags
+    context.left = context.left.split(RegExp(regexp.tagSelector)).splice(-1)[0]
+    context.right = context.right.split(RegExp(regexp.tagSelector))[0]
 
-    let context = leftContext + rightContext
+    if (this.op === diffType.mechanical.ins) { context.left += this.content }
 
-    return context
+    return context.left + context.right
   }
 
   /**
@@ -317,7 +314,7 @@ class MechanicalDiff extends Diff {
   isEnclosedInTag (oldText, newText) {
     // If the operation is a INS, the diff's content is the new text.
     // If the operation is a DEL, the diff's content is the old text.
-    let text = this.op === diffType.mechanical.ins ? oldText : newText
+    let text = this._getText(oldText, newText)
 
     // Set left and right selector
     const left = '<[A-z]+[A-z\\d\\=\\"\\s]*'
@@ -325,6 +322,32 @@ class MechanicalDiff extends Diff {
 
     // Check if the diff is inside a tag
     return RegExp(`${left}${this.content}${right}`).test(text)
+  }
+
+  /**
+   *
+   *
+   * @param {*} oldText
+   * @param {*} newText
+   * @returns
+   * @memberof MechanicalDiff
+   */
+  _getText (oldText, newText) {
+    return this.op === diffType.mechanical.ins ? newText : oldText
+  }
+
+  /**
+   *
+   *
+   * @param {*} text
+   * @returns
+   * @memberof MechanicalDiff
+   */
+  _getContexts (text) {
+    return {
+      left: text.substring(0, this.pos),
+      right: text.substring(this.op === diffType.mechanical.ins ? this.pos + this.content.length : this.pos, text.length)
+    }
   }
 }
 
@@ -577,6 +600,52 @@ class ThreeDiff {
       (leftDiff, rightDiff = null) => false,
 
       /**
+       * WORDCHANGE 1 DIFF
+       *
+       * NOTE: can be one or more diffs
+       * First the method tries to gather the word in which the diff is contained and tag it as a wordchange
+       * If the diffs are two, it takes the context without diffs and check if they're equals. If so, it is a wordchange
+
+      (leftDiff, rightDiff = null) => {
+        // Block couple of diffs
+        if (rightDiff !== null) { return false }
+
+        // Gather the context of the leftDiff
+        let leftContext = leftDiff.getWord(this.oldText, this.newText)
+
+        if (!RegExp(regexp.wordchange).test(leftContext)) { return false }
+
+        return diffType.structural.wordchange
+      },
+ */
+      /**
+       * WORDCHANGE 2 DIFF
+       *
+       * NOTE: can be one or more diffs
+       * First the method tries to gather the word in which the diff is contained and tag it as a wordchange
+       * If the diffs are two, it takes the context without diffs and check if they're equals. If so, it is a wordchange
+       */
+      (leftDiff, rightDiff = null) => {
+        // Block uncoupled diff
+        if (rightDiff === null) { return false }
+
+        // Gather the context of the leftDiff
+        let leftDiffContext = leftDiff.getWord(this.newText)
+        let rightDiffContext = rightDiff.getWord(this.newText)
+
+        // If both diffs are not empty
+        if (leftDiffContext === '' || rightDiffContext === '') return false
+
+        // If both context are without spaces
+        if (!RegExp(regexp.wordchange).test(leftDiffContext) || !RegExp(regexp.wordchange).test(leftDiffContext)) return false
+
+        // If the two diffs context is equal
+        if (leftDiffContext !== rightDiffContext) return false
+
+        return diffType.structural.wordchange
+      },
+
+      /**
        * TEXTREPLACE
        *
        * NOTE: only two parameters
@@ -589,41 +658,6 @@ class ThreeDiff {
         leftDiff.pos === rightDiff.pos &&
         leftDiff.op !== rightDiff.op)
           ? diffType.structural.textReplace
-          : false
-      },
-
-      /**
-       * WORDCHANGE
-       *
-       * NOTE: can be one or more diffs
-       * First the method tries to gather the word in which the diff is contained and tag it as a wordchange
-       * If the diffs are two, it takes the context without diffs and check if they're equals. If so, it is a wordchange
-       */
-      (leftDiff, rightDiff = null) => {
-        // Block couple of diffs
-        if (rightDiff !== null) { return false }
-
-        // Gather the context of the leftDiff
-        let leftContext = leftDiff.getWord(this.newText)
-
-        if (!RegExp(regexp.wordchange).test(leftContext)) { return false }
-
-        return diffType.structural.wordchange
-      },
-
-      (leftDiff, rightDiff = null) => {
-        // Block uncoupled diff
-        if (rightDiff === null) { return false }
-
-        // Gather the context of the leftDiff
-        let leftContext = leftDiff.getWord(this.newText)
-
-        // If rightDiff has a tag inside block
-        if (RegExp(regexp.tagSelector).test(rightDiff.content)) return false
-        let rightContext = rightDiff.getWord(this.newText)
-
-        return (leftContext !== '' && rightContext !== '') && (RegExp(regexp.wordchange).test(leftContext) && RegExp(regexp.wordchange).test(rightContext) && (leftContext === rightContext))
-          ? diffType.structural.wordchange
           : false
       },
 
@@ -688,10 +722,6 @@ class ThreeDiff {
             break
           }
         }
-
-        if (
-          structuralDiff.op !== diffType.structural.wordchange ||
-          structuralDiff.op !== diffType.structural.replace) break
       }
 
       // Try all rules on only left diff
