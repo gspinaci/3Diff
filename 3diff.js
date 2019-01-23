@@ -106,8 +106,8 @@ class Adapter {
    * @param {*} listMechanicalOperations
    * @memberof Adapter
    */
-  makeDiff (listMechanicalOperations) {
-    this.threeDiff = new ThreeDiff(listMechanicalOperations, this.oldText, this.newText)
+  makeDiff (listMechanicalOperations, html) {
+    this.threeDiff = new ThreeDiff(listMechanicalOperations, this.oldText, this.newText, html)
   }
 
   /**
@@ -128,6 +128,26 @@ class Adapter {
    */
   getStructuralOperations () {
     return this.threeDiff.getStructuralOperations()
+  }
+
+  /**
+   *
+   *
+   * @returns
+   * @memberof Adapter
+   */
+  getSemanticOperations () {
+    return this.threeDiff.getSemanticOperations()
+  }
+
+  /**
+   *
+   *
+   * @returns
+   * @memberof Adapter
+   */
+  getDiffHTML () {
+    return this.threeDiff.getDiffHTML()
   }
 }
 
@@ -161,6 +181,9 @@ class DiffMatchPatchAdapter extends Adapter {
     // https://github.com/google/diff-match-patch/wiki/API#patch_makediffs--patches
     this.patches = dmp.patch_make(this.diffs)
 
+    // Get the HTML
+    this.html = dmp.diff_prettyHtml(this.diffs)
+
     // Execute the run algorithm
     this.runDiffAlgorithm()
   }
@@ -172,7 +195,7 @@ class DiffMatchPatchAdapter extends Adapter {
    * @memberof DiffMatchPatchAdapter
    */
   runDiffAlgorithm () {
-    this.makeDiff(this._getMechanicalOps())
+    this.makeDiff(this._getMechanicalOps(), this.html)
   }
 
   /**
@@ -420,7 +443,7 @@ class ThreeDiff {
    * @param {*} newText
    * @memberof ThreeDiff
    */
-  constructor (listMechanicalOperations, oldText, newText) {
+  constructor (listMechanicalOperations, oldText, newText, html) {
     // Save the list of all the mechanical operations
     this.listMechanicalOperations = listMechanicalOperations
     this.listStructuralOperations = []
@@ -429,6 +452,8 @@ class ThreeDiff {
     // Save the texts
     this.oldText = oldText
     this.newText = newText
+
+    this.html = html
 
     // Initialise the structural rules
     this.structuralRules = [
@@ -958,6 +983,26 @@ class ThreeDiff {
    */
   getStructuralOperations () {
     return this.listStructuralOperations
+  }
+
+  /**
+   *
+   *
+   * @returns
+   * @memberof ThreeDiff
+   */
+  getSemanticOperations () {
+    return this.listSemanticOperations
+  }
+
+  /**
+   *
+   *
+   * @returns
+   * @memberof ThreeDiff
+   */
+  getDiffHTML () {
+    return this.html
   }
 }
 

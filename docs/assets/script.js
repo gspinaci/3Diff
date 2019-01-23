@@ -6,6 +6,7 @@
 
 const codeMechanicalList = $('#codeMechanicalList')
 const codeStructuralList = $('#codeStructuralList')
+const txtDiffHTML = $('#txtDiffHTML')
 const btnDiff = $('#btnDiff')
 
 $('document').ready(function () {
@@ -21,6 +22,7 @@ $('document').ready(function () {
     const algorithm = new DiffAlgorithmSelector(oldText, newText, type)
 
     // Log the result
+    logDiffHTML(algorithm.getDiffHTML())
     logMechanicalList(JSON.stringify(algorithm.getMechanicalOperations(), null, 2))
     logStructuralList(JSON.stringify(algorithm.getStructuralOperations(), null, 2))
   }
@@ -39,3 +41,10 @@ const logMechanicalList = text => codeMechanicalList.text(text)
  * @param {*} text
  */
 const logStructuralList = text => codeStructuralList.text(text)
+
+/**
+ *
+ *
+ * @param {*} html
+ */
+const logDiffHTML = html => txtDiffHTML.html(html)
