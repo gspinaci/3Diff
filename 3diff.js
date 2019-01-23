@@ -331,13 +331,18 @@ class MechanicalDiff extends Diff {
   /**
    *
    *
-   * @param {*} text
+   * @param {*} oldText
+   * @param {*} newText
+   * @returns
    * @memberof MechanicalDiff
    */
-  getEnclosingTag (text) {
+  getEnclosingTag (oldText, newText) {
+    // Get the correct text
+    let text = this._getText(oldText, newText)
+
     // Set left and right selector
-    const left = '<[A-z]+[A-z\\/\\-\\d\\=\\"\\s]*'
-    const right = '[A-z\\/\\-\\d\\=\\"\\s]*>'
+    const left = '<[A-z\\/\\-\\d\\=\\"\\s\\:\\%\\.\\,]*'
+    const right = '[A-z\\/\\-\\d\\=\\"\\s\\:\\%\\.\\,]*>'
 
     // Get list of matching patterns
     let matches = []
@@ -469,8 +474,8 @@ class ThreeDiff {
         if (rightDiff === null) return false
 
         // Check if both diffs are enclosed in a tag
-        let leftDiffTag = leftDiff.getEnclosingTag(this.newText)
-        let rightDiffTag = rightDiff.getEnclosingTag(this.newText)
+        let leftDiffTag = leftDiff.getEnclosingTag(this.oldText, this.newText)
+        let rightDiffTag = rightDiff.getEnclosingTag(this.oldText, this.newText)
 
         // If both diffs are enclosed in a tag
         if (leftDiffTag === null || rightDiffTag === null) return false
@@ -562,8 +567,8 @@ class ThreeDiff {
         if (rightDiff === null) return false
 
         // Check if both diffs are enclosed in a tag
-        let leftDiffTag = leftDiff.getEnclosingTag(this.newText)
-        let rightDiffTag = rightDiff.getEnclosingTag(this.newText)
+        let leftDiffTag = leftDiff.getEnclosingTag(this.oldText, this.newText)
+        let rightDiffTag = rightDiff.getEnclosingTag(this.oldText, this.newText)
 
         // If both diffs are enclosed in a tag
         if (leftDiffTag === null || rightDiffTag === null) return false
@@ -829,62 +834,86 @@ class ThreeDiff {
    */
   _setOldsNews () {
     for (let structuralOperation of this.listStructuralOperations) {
-      // Create a reference to the items
-      let items = structuralOperation.items
+      // Text and structure are managed in diffetenr types
+      if (structuralOperation.op === diffType.structural.replace) {
+        // Get the texts if it is facing a diff over structure
+        const texts = this._getOldNewText(structuralOperation)
+        structuralOperation.new = texts.newText
+        structuralOperation.old = texts.oldText
+      } else {
+        // Get the texts if it is facing a diff over text
+        const texts = this._getOldNewText(structuralOperation)
+        structuralOperation.new = texts.newText
+        structuralOperation.old = texts.oldText
+      }
+    }
+  }
 
-      // Get first and last diff
-      let newTextBoundaries = this._getContextBoundariesNew(this.newText, items[0], items[items.length - 1])
+  /**
+   *
+   *
+   * @param {*} structuralOperation
+   * @returns
+   * @memberof ThreeDiff
+   */
+  _getOldNewText (structuralOperation) {
+    // Create a reference to the items
+    let items = structuralOperation.items
 
-      // Create the new text
-      let newText = newTextBoundaries.leftContext
-      items.map((diff, index) => {
-        // Save reference to the next diff
-        let nextDiff = items[index + 1]
+    // Get first and last diff
+    let newTextBoundaries = this._getContextBoundariesNew(this.newText, items[0], items[items.length - 1])
 
-        // If is an insert save it
-        if (diff.op === diffType.mechanical.ins) {
-          newText += diff.content
+    // Create the new text
+    let newText = newTextBoundaries.leftContext
+    items.map((diff, index) => {
+      // Save reference to the next diff
+      let nextDiff = items[index + 1]
 
-          if (typeof nextDiff !== 'undefined') {
-            newText += this.newText.substring(diff.pos + diff.content.length, nextDiff.pos)
-          }
-          // Else don't save it
-        } else {
-          if (typeof nextDiff !== 'undefined') {
-            newText += this.newText.substring(diff.pos, nextDiff.pos)
-          }
+      // If is an insert save it
+      if (diff.op === diffType.mechanical.ins) {
+        newText += diff.content
+
+        if (typeof nextDiff !== 'undefined') {
+          newText += this.newText.substring(diff.pos + diff.content.length, nextDiff.pos)
         }
-      })
-
-      newText += newTextBoundaries.rightContext
-
-      // OldText
-      let oldTextBoundaries = this._getContextBoundariesOld(this.oldText, items[0], items[items.length - 1])
-
-      let oldText = oldTextBoundaries.leftContext
-      items.map((diff, index) => {
-        // Save reference to the next diff
-        let nextDiff = items[index + 1]
-
-        // If is an insert don't save
-        if (diff.op === diffType.mechanical.ins) {
-          if (typeof nextDiff !== 'undefined') {
-            oldText += this.oldText.substring(diff.pos, nextDiff.pos - diff.content.length)
-          }
-          // Else don't save it
-        } else {
-          oldText += diff.content
-          if (typeof nextDiff !== 'undefined') {
-            oldText += this.oldText.substring(diff.pos + diff.content.length, nextDiff.pos + diff.content.length)
-          }
+        // Else don't save it
+      } else {
+        if (typeof nextDiff !== 'undefined') {
+          newText += this.newText.substring(diff.pos, nextDiff.pos)
         }
-      })
+      }
+    })
 
-      oldText += newTextBoundaries.rightContext
+    newText += newTextBoundaries.rightContext
 
-      // Save the text
-      structuralOperation.new = newText
-      structuralOperation.old = oldText
+    // OldText
+    let oldTextBoundaries = this._getContextBoundariesOld(this.oldText, items[0], items[items.length - 1])
+
+    let oldText = oldTextBoundaries.leftContext
+    items.map((diff, index) => {
+      // Save reference to the next diff
+      let nextDiff = items[index + 1]
+
+      // If is an insert don't save
+      if (diff.op === diffType.mechanical.ins) {
+        if (typeof nextDiff !== 'undefined') {
+          oldText += this.oldText.substring(diff.pos, nextDiff.pos - diff.content.length)
+        }
+        // Else don't save it
+      } else {
+        oldText += diff.content
+        if (typeof nextDiff !== 'undefined') {
+          oldText += this.oldText.substring(diff.pos + diff.content.length, nextDiff.pos + diff.content.length)
+        }
+      }
+    })
+
+    oldText += newTextBoundaries.rightContext
+
+    // Save the text
+    return {
+      newText: newText,
+      oldText: oldText
     }
   }
 
