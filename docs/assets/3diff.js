@@ -311,17 +311,30 @@ class MechanicalDiff extends Diff {
    * @param {*} text
    * @memberof MechanicalDiff
    */
-  isEnclosedInTag (oldText, newText) {
-    // If the operation is a INS, the diff's content is the new text.
-    // If the operation is a DEL, the diff's content is the old text.
-    let text = this._getText(oldText, newText)
-
+  getEnclosingTag (text) {
     // Set left and right selector
-    const left = '<[A-z]+[A-z\\d\\=\\"\\s]*'
-    const right = '[A-z\\d\\=\\"\\s]*>'
+    const left = '<[A-z]+[A-z\\/\\-\\d\\=\\"\\s]*'
+    const right = '[A-z\\/\\-\\d\\=\\"\\s]*>'
 
-    // Check if the diff is inside a tag
-    return RegExp(`${left}${this.content}${right}`).test(text)
+    // Get list of matching patterns
+    let matches = []
+    let match
+    let tagSelectorRegexp = RegExp(`${left}${this.content}${right}`, 'g')
+    while ((match = tagSelectorRegexp.exec(text)) !== null) {
+      matches.push(match)
+    }
+
+    // Check each matching tag
+    for (const match of matches) {
+      // Save upper vars
+      const regexUpperIndex = match.index + match[0].length
+      const diffUpperIndex = this.pos + this.content.length
+
+      // The regex result must contain the entire diff content MUST start before and end after
+      if (match.index < this.pos && regexUpperIndex > diffUpperIndex) { return match }
+    }
+
+    return null
   }
 
   /**
@@ -431,11 +444,17 @@ class ThreeDiff {
         if (rightDiff === null) return false
 
         // Check if both diffs are enclosed in a tag
-        let leftDiffTag = leftDiff.isEnclosedInTag(this.newText, this.oldText)
-        let rightDiffTag = rightDiff.isEnclosedInTag(this.newText, this.oldText)
+        let leftDiffTag = leftDiff.getEnclosingTag(this.newText)
+        let rightDiffTag = rightDiff.getEnclosingTag(this.newText)
 
         // If both diffs are enclosed in a tag
-        if (!leftDiffTag || !rightDiffTag) return false
+        if (leftDiffTag === null || rightDiffTag === null) return false
+
+        // If the tags have the same index
+        if (leftDiffTag.index !== rightDiffTag.index) return false
+
+        // If the two diffs have different index
+        if (leftDiff.pos === rightDiff.pos) return false
 
         // If the two diffs have equal content
         if (leftDiff.content !== rightDiff.content) return false
@@ -511,18 +530,40 @@ class ThreeDiff {
       },
 
       /**
-       * REPLACE
+       * REPLACE 2 diffs
        */
       (leftDiff, rightDiff = null) => {
         // Block single diff
         if (rightDiff === null) return false
 
         // Check if both diffs are enclosed in a tag
-        let leftDiffTag = leftDiff.isEnclosedInTag(this.newText, this.oldText)
-        let rightDiffTag = rightDiff.isEnclosedInTag(this.newText, this.oldText)
+        let leftDiffTag = leftDiff.getEnclosingTag(this.newText)
+        let rightDiffTag = rightDiff.getEnclosingTag(this.newText)
 
         // If both diffs are enclosed in a tag
-        if (!leftDiffTag || !rightDiffTag) return false
+        if (leftDiffTag === null || rightDiffTag === null) return false
+
+        // If the tags have the same index
+        if (leftDiffTag.index !== rightDiffTag.index) return false
+
+        // If the two diffs have equal index
+        if (leftDiff.pos !== rightDiff.pos) return false
+
+        return diffType.structural.replace
+      },
+
+      /**
+       * REPLACE 1 diffs
+       */
+      (leftDiff, rightDiff = null) => {
+        // Block double diff
+        if (rightDiff !== null) return false
+
+        // Check if both diffs are enclosed in a tag
+        let leftDiffTag = leftDiff.getEnclosingTag(this.newText)
+
+        // If both diffs are enclosed in a tag
+        if (leftDiffTag === null) return false
 
         return diffType.structural.replace
       },
@@ -602,9 +643,6 @@ class ThreeDiff {
       /**
        * WORDCHANGE 1 DIFF
        *
-       * NOTE: can be one or more diffs
-       * First the method tries to gather the word in which the diff is contained and tag it as a wordchange
-       * If the diffs are two, it takes the context without diffs and check if they're equals. If so, it is a wordchange
        */
       (leftDiff, rightDiff = null) => {
         // Block couple of diffs
@@ -622,9 +660,6 @@ class ThreeDiff {
       /**
        * WORDCHANGE 2 DIFF
        *
-       * NOTE: can be one or more diffs
-       * First the method tries to gather the word in which the diff is contained and tag it as a wordchange
-       * If the diffs are two, it takes the context without diffs and check if they're equals. If so, it is a wordchange
        */
       (leftDiff, rightDiff = null) => {
         // Block uncoupled diff
@@ -653,13 +688,19 @@ class ThreeDiff {
        * If the position of two diffs are the same, the content and the operation are different
        */
       (leftDiff, rightDiff = null) => {
+        // Block uncoupled diffs
         if (rightDiff === null) return false
 
-        return (leftDiff.content !== rightDiff.content &&
-        leftDiff.pos === rightDiff.pos &&
-        leftDiff.op !== rightDiff.op)
-          ? diffType.structural.textReplace
-          : false
+        // If the diffs have different content
+        if (leftDiff.content === rightDiff.content) return false
+
+        // If the diffs have different operation
+        if (leftDiff.op === rightDiff.op) return false
+
+        // If the diffs have different position
+        if (leftDiff.pos !== rightDiff.pos) return false
+
+        return diffType.structural.textReplace
       },
 
       /**
@@ -668,10 +709,15 @@ class ThreeDiff {
        * NOTE: only one parameter
        * If the previous rules don't match, this will match
        */
-      (leftDiff, rightDiff = null) =>
-        rightDiff === null
-          ? leftDiff.op === diffType.mechanical.ins ? diffType.structural.textInsert : diffType.structural.textDelete
-          : false
+      (leftDiff, rightDiff = null) => {
+        // Block coupled diffs
+        if (rightDiff !== null) return false
+
+        return leftDiff.op === diffType.mechanical.ins
+          ? diffType.structural.textInsert
+          : diffType.structural.textDelete
+      }
+
     ]
 
     // Execute the structural analysis
@@ -722,6 +768,11 @@ class ThreeDiff {
             // Don't call any other rule
             break
           }
+        }
+
+        // If the diff is a wordchange, check with other diffs
+        if (typeof structuralDiff.op !== 'undefined' && structuralDiff.op !== diffType.structural.wordchange) {
+          break
         }
       }
 
