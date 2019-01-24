@@ -311,21 +311,33 @@ class MechanicalDiff extends Diff {
    * eg: w o r l d s
    *     0 1 2 3 4 5
    */
-  getWord (text) {
-    // Update the context
-    let context = this._getContexts(text)
+  getWord (oldText, newText) {
+    // Get the correct text
+    let text = this._getText(oldText, newText)
 
-    // Split by whitespaces
-    context.left = context.left.split(/\s/).splice(-1)[0]
-    context.right = context.right.split(/\s/)[0]
+    // Set left and right selector
+    const left = '[A-z]*'
+    const right = '[A-z]*'
 
-    // Split by tags
-    context.left = context.left.split(RegExp(regexp.tagSelector)).splice(-1)[0]
-    context.right = context.right.split(RegExp(regexp.tagSelector))[0]
+    // Get list of matching patterns
+    let matches = []
+    let match
+    let tagSelectorRegexp = RegExp(`${left}${this.content}${right}`, 'g')
+    while ((match = tagSelectorRegexp.exec(text)) !== null) {
+      matches.push(match)
+    }
 
-    if (this.op === diffType.mechanical.ins) { context.left += this.content }
+    // Check each matching tag
+    for (const match of matches) {
+      // Save upper vars
+      const regexUpperIndex = match.index + match[0].length
+      const diffUpperIndex = this.pos + this.content.length
 
-    return context.left + context.right
+      // The regex result must contain the entire diff content MUST start before and end after
+      if (match.index < this.pos && regexUpperIndex > diffUpperIndex) { return match }
+    }
+
+    return null
   }
 
   /**
@@ -337,8 +349,13 @@ class MechanicalDiff extends Diff {
    * @memberof MechanicalDiff
    */
   getEnclosingTag (oldText, newText) {
-    // Get the correct text
-    let text = this._getText(oldText, newText)
+    // Get the correct context
+    // Normally, the position is calculated over the NEWTEXT. The regexp must be executed over it.
+    // The algorithm needs to create a pattern with the text at the position, in the
+    let newContent = newText.substring(this.pos, this.pos + this.content.length)
+
+    // Old
+    // let newContent = this._getText(oldText, newText).substring(this.pos, this.pos + this.content.length)
 
     // Set left and right selector
     const left = '<[A-z\\/\\-\\d\\=\\"\\s\\:\\%\\.\\,]*'
@@ -347,8 +364,8 @@ class MechanicalDiff extends Diff {
     // Get list of matching patterns
     let matches = []
     let match
-    let tagSelectorRegexp = RegExp(`${left}${this.content}${right}`, 'g')
-    while ((match = tagSelectorRegexp.exec(text)) !== null) {
+    let tagSelectorRegexp = RegExp(`${left}${newContent}${right}`, 'g')
+    while ((match = tagSelectorRegexp.exec(newText)) !== null) {
       matches.push(match)
     }
 
@@ -577,7 +594,7 @@ class ThreeDiff {
         if (leftDiffTag.index !== rightDiffTag.index) return false
 
         // If the two diffs have equal index
-        if (leftDiff.pos !== rightDiff.pos) return false
+        // if (leftDiff.pos !== rightDiff.pos) return false
 
         return diffType.structural.replace
       },
@@ -590,7 +607,7 @@ class ThreeDiff {
         if (rightDiff !== null) return false
 
         // Check if both diffs are enclosed in a tag
-        let leftDiffTag = leftDiff.getEnclosingTag(this.newText)
+        let leftDiffTag = leftDiff.getEnclosingTag(this.oldText, this.newText)
 
         // If both diffs are enclosed in a tag
         if (leftDiffTag === null) return false
@@ -681,6 +698,8 @@ class ThreeDiff {
         // Gather the context of the leftDiff
         let leftDiffContext = leftDiff.getWord(this.newText)
 
+        if (leftDiffContext === null) return false
+
         // If both context are without spaces
         if (!RegExp(regexp.wordchange).test(leftDiffContext)) return false
 
@@ -698,6 +717,8 @@ class ThreeDiff {
         // Gather the context of the leftDiff
         let leftDiffContext = leftDiff.getWord(this.newText)
         let rightDiffContext = rightDiff.getWord(this.newText)
+
+        if (leftDiffContext === null || leftDiffContext === null) return false
 
         // If both diffs are not empty
         if (leftDiffContext === '' || rightDiffContext === '') return false
@@ -801,7 +822,9 @@ class ThreeDiff {
         }
 
         // If the diff is a wordchange, check with other diffs
-        if (typeof structuralDiff.op !== 'undefined' && structuralDiff.op !== diffType.structural.wordchange) {
+        if (typeof structuralDiff.op !== 'undefined' &&
+          structuralDiff.op !== diffType.structural.wordchange &&
+          structuralDiff.op !== diffType.structural.replace) {
           break
         }
       }
@@ -928,7 +951,7 @@ class ThreeDiff {
    */
   _getContextBoundariesNew (text, minDiff, maxDiff) {
     // The fixed length that will be used for retrieve the smallest amount of context
-    const fixedLength = 10
+    const fixedLength = 30
 
     const initPos = minDiff.pos
     const endPos = maxDiff.pos + (maxDiff.op === diffType.mechanical.ins ? maxDiff.content.length : 0)
