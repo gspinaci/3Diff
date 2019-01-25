@@ -6,15 +6,41 @@
 
 const codeMechanicalList = $('#codeMechanicalList')
 const codeStructuralList = $('#codeStructuralList')
+const oldTextTextarea = $('#oldTextTextarea')
+const newTextTextarea = $('#newTextTextarea')
 const txtDiffHTML = $('#txtDiffHTML')
-const btnDiff = $('#btnDiff')
+const btnDiffAjax = $('#btnDiffAjax')
+const btnDiffTextarea = $('#btnDiffTextarea')
 
 $('document').ready(function () {
-  btnDiff.on('click', function () {
-    let oldText = $('#oldTextTextarea').val()
-    let newText = $('#newTextTextarea').val()
+  // Button ajax
+  btnDiffAjax.on('click', function () {
+    // Set requests
+    const oldTextRequest = {
+      url: 'https://raw.githubusercontent.com/gspinaci/3Diff/master/docs/assets/corpora/demo_alternC/v0.html'
+    }
 
-    makeDiff(oldText, newText, algorithms.diffMatchPatch)
+    const newTextRequest = {
+      url: 'https://raw.githubusercontent.com/gspinaci/3Diff/master/docs/assets/corpora/demo_alternC/v1.html'
+    }
+
+    $.ajax(oldTextRequest).done(oldText => {
+      // Update text
+      oldTextTextarea.val(oldText)
+
+      $.ajax(newTextRequest).done(newText => {
+        // Update text
+        newTextTextarea.val(newText)
+
+        // Call diff
+        makeDiff(oldText, newText, algorithms.diffMatchPatch)
+      })
+    })
+  })
+
+  // Button textarea
+  btnDiffTextarea.on('click', function () {
+    makeDiff(oldTextTextarea.val(), newTextTextarea.val(), algorithms.diffMatchPatch)
   })
 
   function makeDiff (oldText, newText, type) {
