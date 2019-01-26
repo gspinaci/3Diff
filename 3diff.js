@@ -592,6 +592,19 @@ class ThreeDiff {
        *
        */
       (leftDiff, rightDiff = null) => {
+        // Block double diff
+        if (rightDiff !== null) return false
+
+        if (!/^[\s]+$/.test(leftDiff.content)) return false
+
+        return diffType.structural.noop
+      },
+
+      /**
+       * NOOP
+       *
+       */
+      (leftDiff, rightDiff = null) => {
         // Block single diff
         if (rightDiff === null) return false
 
