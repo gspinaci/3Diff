@@ -347,11 +347,15 @@ class MechanicalDiff extends Diff {
    * @returns
    * @memberof MechanicalDiff
    */
-  getEnclosingTag (text) {
+  getEnclosingTag (oldText, newText) {
     // Get the correct context
     // Normally, the position is calculated over the NEWTEXT. The regexp must be executed over it.
     // The algorithm needs to create a pattern with the text at the position, in the
-    let newContent = text.substring(this.pos, this.pos + this.content.length)
+    // let text = newText
+    let newContent = newText.substring(this.pos, this.pos + this.content.length)
+
+    // If the new content is a sequence of open and close tags
+    if (/^[<>]+/.test(newContent)) { newContent = newText.substring(this.pos - this.content.length, this.pos) }
 
     // Old
     // let newContent = this._getText(oldText, newText).substring(this.pos, this.pos + this.content.length)
@@ -361,18 +365,21 @@ class MechanicalDiff extends Diff {
     const right = '[A-z\\/\\-\\d\\=\\"\\s\\:\\%\\.\\,\\(\\)\\#]*>'
 
     // Get list of matching patterns
-    let matches = RegExp(`${left}${RegExp.escape(newContent)}${right}`, 'g').execGlobal(text)
+    let matches = RegExp(`${left}${RegExp.escape(newContent)}${right}`, 'g').execGlobal(newText)
 
     // Check each matching tag
     for (const match of matches) {
       // Save upper vars
-      const regexUpperIndex = match.index + match[0].length
+      let regexUpperIndex = match.index + match[0].length
       const diffUpperIndex = this.pos + this.content.length
+
+      // If the DIFF is a DEL, then add its length to the regexUpperIndex
+      if (this.op === diffType.mechanical.del) regexUpperIndex += this.content.length
 
       // The regex result must contain the entire diff content MUST start before and end after
       if (match.index < this.pos && regexUpperIndex > diffUpperIndex) {
         // Retrieve XPATH and character position proper of the tag
-        let tag = this.getCssSelector(text, match)
+        let tag = this.getCssSelector(newText, match)
 
         // Add a more specific selector
         tag.path = `#newTextTemplate${tag.path}`
@@ -609,8 +616,8 @@ class ThreeDiff {
         if (rightDiff === null) return false
 
         // Check if both diffs are enclosed in a tag
-        let leftDiffTag = leftDiff.getEnclosingTag(this.newText)
-        let rightDiffTag = rightDiff.getEnclosingTag(this.newText)
+        let leftDiffTag = leftDiff.getEnclosingTag(this.oldText, this.newText)
+        let rightDiffTag = rightDiff.getEnclosingTag(this.oldText, this.newText)
 
         // If both diffs are enclosed in a tag
         if (leftDiffTag === null || rightDiffTag === null) return false
@@ -711,9 +718,13 @@ class ThreeDiff {
         // Block single diff
         if (rightDiff === null) return false
 
+        if (rightDiff.id === 'edit-0027') {
+          console.log(rightDiff)
+        }
+
         // Check if both diffs are enclosed in a tag
-        let leftDiffTag = leftDiff.getEnclosingTag(this.newText)
-        let rightDiffTag = rightDiff.getEnclosingTag(this.newText)
+        let leftDiffTag = leftDiff.getEnclosingTag(this.oldText, this.newText)
+        let rightDiffTag = rightDiff.getEnclosingTag(this.oldText, this.newText)
 
         // If both diffs are enclosed in a tag
         if (leftDiffTag === null || rightDiffTag === null) return false
@@ -735,7 +746,7 @@ class ThreeDiff {
         if (rightDiff !== null) return false
 
         // Check if both diffs are enclosed in a tag
-        let leftDiffTag = leftDiff.getEnclosingTag(this.newText)
+        let leftDiffTag = leftDiff.getEnclosingTag(this.oldText, this.newText)
 
         // If both diffs are enclosed in a tag
         if (leftDiffTag === null) return false
