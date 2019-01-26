@@ -387,13 +387,6 @@ class MechanicalDiff extends Diff {
   /**
    *
    *
-   * @param {String} text
-   * @param {String} tagString
-   * @returns
-   * @memberof MechanicalDiff
-  /**
-   *
-   *
    * @param {*} text
    * @param {*} tagString
    * @returns
