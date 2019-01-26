@@ -370,11 +370,11 @@ class MechanicalDiff extends Diff {
     // Check each matching tag
     for (const match of matches) {
       // Save upper vars
-      let regexUpperIndex = match.index + match[0].length
-      const diffUpperIndex = this.pos + this.content.length
+      const regexUpperIndex = match.index + match[0].length
+      let diffUpperIndex = this.pos + this.content.length
 
       // If the DIFF is a DEL, then add its length to the regexUpperIndex
-      if (this.op === diffType.mechanical.del) regexUpperIndex += this.content.length
+      if (this.op === diffType.mechanical.del) diffUpperIndex -= this.content.length
 
       // The regex result must contain the entire diff content MUST start before and end after
       if (match.index < this.pos && regexUpperIndex > diffUpperIndex) {
@@ -717,10 +717,6 @@ class ThreeDiff {
       (leftDiff, rightDiff = null) => {
         // Block single diff
         if (rightDiff === null) return false
-
-        if (rightDiff.id === 'edit-0027') {
-          console.log(rightDiff)
-        }
 
         // Check if both diffs are enclosed in a tag
         let leftDiffTag = leftDiff.getEnclosingTag(this.oldText, this.newText)
