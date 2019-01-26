@@ -357,8 +357,8 @@ class MechanicalDiff extends Diff {
     // let newContent = this._getText(oldText, newText).substring(this.pos, this.pos + this.content.length)
 
     // Set left and right selector
-    const left = '<[A-z\\/\\-\\d\\=\\"\\s\\:\\%\\.\\,]*'
-    const right = '[A-z\\/\\-\\d\\=\\"\\s\\:\\%\\.\\,]*>'
+    const left = '<[A-z\\/\\-\\d\\=\\"\\s\\:\\%\\.\\,\\(\\)\\#]*'
+    const right = '[A-z\\/\\-\\d\\=\\"\\s\\:\\%\\.\\,\\(\\)\\#]*>'
 
     // Get list of matching patterns
     let matches = RegExp(`${left}${RegExp.escape(newContent)}${right}`, 'g').execGlobal(text)
@@ -719,7 +719,7 @@ class ThreeDiff {
         if (leftDiffTag === null || rightDiffTag === null) return false
 
         // If the tags have the same index
-        if (leftDiffTag.index !== rightDiffTag.index) return false
+        if (leftDiffTag !== rightDiffTag) return false
 
         // If the two diffs have equal index
         // if (leftDiff.pos !== rightDiff.pos) return false
@@ -819,7 +819,7 @@ class ThreeDiff {
       /**
        * WORDREPLACE
        *
-       * TBD
+       * TODO
        */
       (leftDiff, rightDiff = null) => false,
 

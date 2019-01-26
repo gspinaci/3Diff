@@ -17,11 +17,11 @@ $('document').ready(function () {
   btnDiffAjax.on('click', function () {
     // Set requests
     const oldTextRequest = {
-      url: 'https://raw.githubusercontent.com/gspinaci/3Diff/master/docs/assets/corpora/demo_alternC/v0.html'
+      url: 'https://raw.githubusercontent.com/gspinaci/3Diff/master/docs/assets/corpora/alternC/v0.html'
     }
 
     const newTextRequest = {
-      url: 'https://raw.githubusercontent.com/gspinaci/3Diff/master/docs/assets/corpora/demo_alternC/v1.html'
+      url: 'https://raw.githubusercontent.com/gspinaci/3Diff/master/docs/assets/corpora/alternC/v1.html'
     }
 
     $.ajax(oldTextRequest).done(oldText => {
