@@ -11,6 +11,12 @@
     crossorigin="anonymous">
 
   <title>3Diff</title>
+
+  <style>
+    [id$="TextTemplate"]{
+      display: none;
+    }
+  </style>
 </head>
 
 <body>
@@ -29,11 +35,11 @@
       <div class="form-row">
         <div class="col-md-6">
           <label for="oldTextTextarea">Old text</label>
-          <textarea class="form-control" id="oldTextTextarea" rows="10"><p><b></b><b></b><b></b><span><div><div><b></b><b id="bold1">ciao</b></div></div></span></p></textarea>
+          <textarea class="form-control" id="oldTextTextarea" rows="10"><div><b></b><b></b><b></b><div><p><b></b><b id="bold0">ciao</b></p></div></span></div></textarea>
         </div>
-        <div class="col-md-6"> 
+        <div class="col-md-6">
           <label for="newTextTextarea">New text</label>
-          <textarea class="form-control" id="newTextTextarea" rows="10"><p><b></b><b></b><b></b><span><div><div><b></b><b id="bold0">ciao</b></div></div></span></p></textarea>
+          <textarea class="form-control" id="newTextTextarea" rows="10"><div><b></b><b></b><b></b><div><p><b></b><b id="bold1">ciao</b></p></div></span></div></textarea>
         </div>
       </div>
 
@@ -43,7 +49,7 @@
       <div class="form-row">
         <button type="button" class="btn btn-success" id="btnDiffAjax">Execute diff AJAX</button>
       </div>
-        
+
     </form>
 
     <!-- Result -->

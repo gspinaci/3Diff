@@ -371,9 +371,13 @@ class MechanicalDiff extends Diff {
 
       // The regex result must contain the entire diff content MUST start before and end after
       if (match.index < this.pos && regexUpperIndex > diffUpperIndex) {
-        console.log(this.getTagXpath(text, match))
+        // Retrieve XPATH and character position proper of the tag
+        let tag = this.getCssSelector(text, match)
 
-        return match
+        // Add a more specific selector
+        tag.path = `#newTextTemplate${tag.path}`
+
+        return document.querySelector(tag.path)
       }
     }
 
@@ -395,7 +399,7 @@ class MechanicalDiff extends Diff {
    * @returns
    * @memberof MechanicalDiff
    */
-  getTagXpath (text, tagString) {
+  getCssSelector (text, tagString) {
     /**
      *
      */
@@ -447,12 +451,18 @@ class MechanicalDiff extends Diff {
       }
     }
 
-    path = this.setParentsSiblingsXpath(path, leftText)
+    // Set siblings and reverse the tags left to right
+    path = this.setParentsSiblings(path, leftText)
     path.reverse()
 
+    // Build the resultpath
     let resultpath = ''
     for (const parent of path) {
-      resultpath += `${parent[0]}[${parent.siblings}]/`
+      // Add the tag name
+      resultpath += `>${parent[0]}`
+
+      // If it has siblings, add it with nth-child pseudo selector
+      if (parent.siblings > 1) resultpath += `:nth-child(${parent.siblings})`
     }
 
     return {
@@ -469,7 +479,7 @@ class MechanicalDiff extends Diff {
    * @returns
    * @memberof MechanicalDiff
    */
-  setParentsSiblingsXpath (parents, text) {
+  setParentsSiblings (parents, text) {
     // Iterate over all of the parents
     for (let i = 1; i < parents.length; i++) {
       let parent = parents[i]
@@ -576,6 +586,8 @@ class ThreeDiff {
     this.newText = newText
 
     this.html = html
+
+    this._addTemplates()
 
     // Initialise the structural rules
     this.structuralRules = [
@@ -902,6 +914,26 @@ class ThreeDiff {
    *
    * @memberof ThreeDiff
    */
+  _addTemplates () {
+    const tagName = 'div'
+
+    let oldTextTemplate = document.createElement(tagName)
+    oldTextTemplate.id = 'oldTextTemplate'
+    oldTextTemplate.innerHTML = this.oldText
+
+    let newTextTemplate = document.createElement(tagName)
+    newTextTemplate.id = 'newTextTemplate'
+    newTextTemplate.innerHTML = this.oldText
+
+    document.body.appendChild(oldTextTemplate)
+    document.body.appendChild(newTextTemplate)
+  }
+
+  /**
+   *
+   *
+   * @memberof ThreeDiff
+   */
   _executeStructuralAnalysis () {
     // Copy the mechanicalOperations list
     let newListMechanicalOperations = this.listMechanicalOperations.slice(0)
@@ -1181,6 +1213,7 @@ class ThreeDiff {
 }
 
 /* eslint-disable no-extend-native */
+/* eslint-disable no-undef */
 
 /**
  *
@@ -1207,5 +1240,6 @@ RegExp.prototype.execGlobal = function (text) {
 
   return matches
 }
-/* eslint-disable no-extend-native */
+/* eslint-enable no-extend-native */
 /* eslint-enable no-unused-vars */
+/* eslint-enable no-undef */
