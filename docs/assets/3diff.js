@@ -40,6 +40,8 @@ const regexp = {
   // and an optional following A-z (capitalized or not character)
   punctuation: '^[\\!\\"\\#\\$\\%\\&\'\\(\\)\\*\\+\\,\\-\\.\\/\\:\\;\\=\\?\\@\\[\\]\\^\\_\\`\\{\\|\\}\\~ ]+[A-z]?$',
 
+  accented: 'àèìòùÀÈÌÒÙáéíóúýÁÉÍÓÚÝâêîôûÂÊÎÔÛãñõÃÑÕäëïöüÿÄËÏÖÜŸçÇßØøÅåÆæœ',
+
   // No whitespaces
   wordchange: '^\\S*$',
 
@@ -342,30 +344,27 @@ class MechanicalDiff extends Diff {
   /**
    *
    *
-   * @param {*} oldText
-   * @param {*} newText
+   * @param {*} text
    * @returns
    * @memberof MechanicalDiff
    */
-  getEnclosingTag (oldText, newText) {
+  getEnclosingTag (text) {
     // Get the correct context
     // Normally, the position is calculated over the NEWTEXT. The regexp must be executed over it.
     // The algorithm needs to create a pattern with the text at the position, in the
-    // let text = newText
-    let newContent = newText.substring(this.pos, this.pos + this.content.length)
+    let newContent = text.substring(this.pos, this.pos + this.content.length)
 
     // If the new content is a sequence of open and close tags
-    if (/^[<>]+/.test(newContent)) { newContent = newText.substring(this.pos - this.content.length, this.pos) }
-
-    // Old
-    // let newContent = this._getText(oldText, newText).substring(this.pos, this.pos + this.content.length)
+    if (/^[<>]+/.test(newContent)) {
+      newContent = text.substring(this.pos - this.content.length, this.pos)
+    }
 
     // Set left and right selector
     const left = '<[A-z\\/\\-\\d\\=\\"\\s\\:\\%\\.\\,\\(\\)\\#]*'
     const right = '[A-z\\/\\-\\d\\=\\"\\s\\:\\%\\.\\,\\(\\)\\#]*>'
 
     // Get list of matching patterns
-    let matches = RegExp(`${left}${RegExp.escape(newContent)}${right}`, 'g').execGlobal(newText)
+    let matches = RegExp(`${left}${RegExp.escape(newContent)}${right}`, 'g').execGlobal(text)
 
     // Check each matching tag
     for (const match of matches) {
@@ -379,13 +378,35 @@ class MechanicalDiff extends Diff {
       // The regex result must contain the entire diff content MUST start before and end after
       if (match.index < this.pos && regexUpperIndex > diffUpperIndex) {
         // Retrieve XPATH and character position proper of the tag
-        let tag = this.getCssSelector(newText, match)
+        let tag = this.getCssSelector(text, match)
 
+        // TODO CHANGE
+        if (tag === null) return null
         // Add a more specific selector
         tag.path = `#newTextTemplate${tag.path}`
 
         return document.querySelector(tag.path)
       }
+    }
+
+    return null
+  }
+
+  /**
+   *
+   *
+   * @param {*} text
+   * @memberof MechanicalDiff
+   */
+  getTag (text) {
+    if (RegExp('^[\\s]*<[\\w]+[\\W\\s\\w\\d]*>[\\s]*$').test(this.content)) {
+      // Retrieve XPATH and character position proper of the tag
+      let tag = this.getCssSelector(text, [this.content])
+
+      // Add a more specific selector
+      tag.path = `#newTextTemplate${tag.path}`
+
+      return document.querySelector(tag.path)
     }
 
     return null
@@ -403,70 +424,94 @@ class MechanicalDiff extends Diff {
     /**
      *
      */
-    const initTag = tag => {
-      // Get only the matched tag name from the string
-      tag[0] = tag[0].replace(/[<>/]?/g, '').split(/\s/)[0]
-
-      // Save the number of siblings (is 1 because XPATH starts from 1)
-      tag.siblings = 1
+    const initialiseTag = tag => {
+      tag[0] = tag[0].replace(/[<>]/g, ' ').trim().split(/\s/)[0]
+      tag.children = []
 
       return tag
+    }
+
+    /**
+     *
+     */
+    const setPrevChildren = function (i, child) {
+      // Starting from the first possibly parent element
+      // Arrive to the root
+      // Right to Left
+      for (let j = i - 1; i > 0; i--) {
+        // If the parent is not a closing tag
+        // Add the removing tag as his child
+        if (previousTags[j][0].indexOf('/') !== 0) {
+          previousTags[j].children.push(child)
+          break
+        }
+      }
     }
 
     // When the the tag is retrieved, it should create its XPATH
     // Logging all of its parents I.E. everytime it finds a opening tag
     const leftText = text.split(tagString[0])[0]
-    // Match all of the opening elements
-    let parents = RegExp(regexp.openingElement, 'g').execGlobal(leftText)
 
-    // Save the number of siblings (is 1 because XPATH starts from 1)
-    tagString = initTag(tagString)
+    // Match all of the opening and closing elements
+    let previousTags = RegExp(`<\\/?[\\w]+[\\w\\/\\-\\d\\=\\"\\s\\:\\%\\#\\?\\;\\&\\.\\,\\(\\)\\{\\}\\!\\;\\+${regexp.accented}]*>`, 'g').execGlobal(leftText)
 
-    // Create a variable useful to save the path
-    let path = []
+    // Add the current element
+    previousTags.push(tagString)
 
-    // Add the matched tag to path and parents
-    parents.push(tagString)
-    path.push(tagString)
+    // Initialise all of the tags
+    previousTags.map(tag => initialiseTag(tag))
 
-    // Reverse the parent for iterating right to left
-    parents = parents.reverse()
+    // Iterate over the array of previous tags
+    // Each time that a opening and closing tag is matched remove it
+    // At last, it will have only the unmatched elements (i.e. parents)
+    let iterate = true
+    while (iterate) {
+      iterate = false
 
-    // Retrieve the text starting from the matched node, to the start of the diff node
-    let leftRightboundText = leftText.substring(tagString.index, leftText.length)
+      // Lookup all tags
+      for (let i = 0; i < previousTags.length; i++) {
+        // Save current and next tag
+        let current = previousTags[i]
+        let next = previousTags[i + 1]
 
-    // Iterate over all of the parents
-    // Without taking care of the first element
-    for (let i = 1; i < parents.length; i++) {
-      // Save the tag in a variable
-      let tag = initTag(parents[i])
+        if (typeof next !== 'undefined') {
+          // If the next is closing and they're the same tag remove
+          if ((next[0].indexOf('/') === 0) && current[0] === next[0].replace('/', '')) {
+            iterate = true
+            previousTags.splice(i, 2)
 
-      // Update the bound text
-      leftRightboundText = leftText.substring(tag.index, parents[i - 1].index)
+            // Lookup at the first not closing tag and set the removed tag as his child
+            setPrevChildren(i, current[0])
+          }
 
-      // Given a opened tag, check if it's closed in the left part of the leftText
-      // If YES, it is a sibling or a relative. but NOT a parent
-      if (!RegExp(`</${tag[0]}>`).test(leftRightboundText)) {
-        path.push(tag)
+          // Remove single tags
+          if (current[0] === 'img' || current[0] === 'wbr' || current[0] === 'input' || current[0] === 'link') {
+            iterate = true
+            previousTags.splice(i, 1)
+
+            // Lookup at the first not closing tag and set the removed tag as his child
+            setPrevChildren(i, current[0])
+          }
+        }
       }
     }
 
-    // Set siblings and reverse the tags left to right
-    path = this.setParentsSiblings(path, leftText)
-    path.reverse()
+    // Using the list of siblings, set if there are siblings with the same name
+    this.setParentsSiblings(previousTags)
 
     // Build the resultpath
     let resultpath = ''
-    for (const parent of path) {
+    for (const parent of previousTags) {
       // Add the tag name
       resultpath += `>${parent[0]}`
 
-      // If it has siblings, add it with nth-child pseudo selector
+      // If the siblings are more than 1 write it on path
       if (parent.siblings > 1) resultpath += `:nth-child(${parent.siblings})`
     }
 
+    // position and css selector
     return {
-      index: path.splice(-1).pop().index,
+      index: previousTags.splice(-1).pop().index,
       path: resultpath
     }
   }
@@ -475,18 +520,22 @@ class MechanicalDiff extends Diff {
    *
    *
    * @param {*} parents
-   * @param {*} text
    * @returns
    * @memberof MechanicalDiff
    */
-  setParentsSiblings (parents, text) {
+  setParentsSiblings (parents) {
     // Iterate over all of the parents
-    for (let i = 1; i < parents.length; i++) {
-      let parent = parents[i]
-      let children = parents[i - 1]
-      let boundText = text.substring(parent.index, children.index)
+    for (let i = parents.length - 1; i > 0; i--) {
+      let child = parents[i]
+      let parent = parents[i - 1]
 
-      children.siblings += RegExp(`</${children[0]}>`, 'g').execGlobal(boundText).length
+      child.siblings = 1
+
+      // Increment the number of siblings if the parent has
+      // children with the same name
+      for (let sibling of parent.children) {
+        if (sibling === child[0]) child.siblings++
+      }
     }
 
     return parents
@@ -616,8 +665,8 @@ class ThreeDiff {
         if (rightDiff === null) return false
 
         // Check if both diffs are enclosed in a tag
-        let leftDiffTag = leftDiff.getEnclosingTag(this.oldText, this.newText)
-        let rightDiffTag = rightDiff.getEnclosingTag(this.oldText, this.newText)
+        let leftDiffTag = leftDiff.getEnclosingTag(this.newText)
+        let rightDiffTag = rightDiff.getEnclosingTag(this.newText)
 
         // If both diffs are enclosed in a tag
         if (leftDiffTag === null || rightDiffTag === null) return false
@@ -642,9 +691,9 @@ class ThreeDiff {
        */
       (leftDiff, rightDiff = null) => {
         // Block single diff
-        if (rightDiff === null) {
-          return false
-        }
+        if (rightDiff === null) return false
+
+        if (leftDiff.content.trim().length === 0 && rightDiff.content.trim().length === 0) return false
 
         return rightDiff.content.trim() === leftDiff.content.trim() &&
           rightDiff.pos !== leftDiff.pos &&
@@ -657,14 +706,14 @@ class ThreeDiff {
        * WRAP / UNWRAP
        */
       (leftDiff, rightDiff = null) => {
-        if (rightDiff === null) {
-          return false
-        }
+        if (rightDiff === null) return false
 
-        // If the two diffs are not tags block
-        if ((!RegExp(regexp.tagSelector).test(leftDiff.content) && !RegExp(regexp.tagSelector).test(rightDiff.content)) && (leftDiff.op === rightDiff.op)) {
-          return false
-        }
+        // Block \s texts
+        if (leftDiff.content.trim().length === 0 && rightDiff.content.trim().length === 0) return false
+
+        // Check if both diffs are enclosed in a tag
+        let leftDiffTag = leftDiff.getTag(this.newText)
+        let rightDiffTag = rightDiff.getTag(this.newText)
 
         // If the two tags are equal
         let leftDiffTagName = leftDiff.content.replace(RegExp(regexp.tagElements, 'g'), '')
@@ -718,9 +767,12 @@ class ThreeDiff {
         // Block single diff
         if (rightDiff === null) return false
 
+        // Block \s texts
+        if (leftDiff.content.trim().length === 0 && rightDiff.content.trim().length === 0) return false
+
         // Check if both diffs are enclosed in a tag
-        let leftDiffTag = leftDiff.getEnclosingTag(this.oldText, this.newText)
-        let rightDiffTag = rightDiff.getEnclosingTag(this.oldText, this.newText)
+        let leftDiffTag = leftDiff.getEnclosingTag(this.newText)
+        let rightDiffTag = rightDiff.getEnclosingTag(this.newText)
 
         // If both diffs are enclosed in a tag
         if (leftDiffTag === null || rightDiffTag === null) return false
@@ -741,8 +793,11 @@ class ThreeDiff {
         // Block double diff
         if (rightDiff !== null) return false
 
+        // Block \s texts
+        if (leftDiff.content.trim().length === 0) return false
+
         // Check if both diffs are enclosed in a tag
-        let leftDiffTag = leftDiff.getEnclosingTag(this.oldText, this.newText)
+        let leftDiffTag = leftDiff.getEnclosingTag(this.newText)
 
         // If both diffs are enclosed in a tag
         if (leftDiffTag === null) return false
@@ -888,6 +943,9 @@ class ThreeDiff {
       (leftDiff, rightDiff = null) => {
         // Block uncoupled diffs
         if (rightDiff === null) return false
+
+        // Block \s texts
+        if (leftDiff.content.trim().length === 0 || rightDiff.content.trim().length === 0) return false
 
         // If the diffs have different content
         if (leftDiff.content === rightDiff.content) return false
@@ -1233,7 +1291,7 @@ class ThreeDiff {
  *
  */
 RegExp.escape = function (string) {
-  return string.replace(/[-\\/\\^$*+?.()|[\]{}]/g, '\\$&')
+  return string.replace(/[-\\/\\^$*+?.()|[\]{}#&;,]/g, '\\$&')
 }
 
 /**
