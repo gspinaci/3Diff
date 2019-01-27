@@ -1,6 +1,7 @@
 /* eslint-disable no-unused-vars */
 // List of diff types
 const diffType = {
+  tbd: 'TBD',
   mechanical: {
     id: 'edit',
     ins: 'INS',
@@ -64,7 +65,6 @@ const regexp = {
   openingElement: '<[A-z]+[A-z\\/\\-\\d\\=\\"\\s\\:\\%\\.\\,\\(\\)\\{\\}\\!\\;]*>'
 }
 
-const TBD = 'TBD'
 const globalUser = 'SAURON'
 
 /**
@@ -399,14 +399,34 @@ class MechanicalDiff extends Diff {
    * @memberof MechanicalDiff
    */
   getTag (text) {
+    // If is a tag
     if (RegExp('^[\\s]*<[\\w]+[\\W\\s\\w\\d]*>[\\s]*$').test(this.content)) {
-      // Retrieve XPATH and character position proper of the tag
-      let tag = this.getCssSelector(text, [this.content])
+      let matches = RegExp(RegExp.escape(this.content), 'g').execGlobal(text)
+      // Check each matching tag
+      for (const match of matches) {
+      // Save upper vars
+        const regexUpperIndex = match.index + match[0].length
+        let diffUpperIndex = this.pos + this.content.length
 
-      // Add a more specific selector
-      tag.path = `#newTextTemplate${tag.path}`
+        // If the DIFF is a DEL, then add its length to the regexUpperIndex
+        if (this.op === diffType.mechanical.del) diffUpperIndex -= this.content.length
 
-      return document.querySelector(tag.path)
+        // The regex result must contain the entire diff content MUST start before and end after
+        if (match.index <= this.pos && regexUpperIndex >= diffUpperIndex) {
+        // Retrieve XPATH and character position proper of the tag
+          let tag = this.getCssSelector(text, match)
+
+          // TODO CHANGE
+          if (tag === null) return null
+          // Add a more specific selector
+          tag.path = `#newTextTemplate${tag.path}`
+
+          return {
+            tag: document.querySelector(tag.path),
+            index: tag.index
+          }
+        }
+      }
     }
 
     return null
@@ -425,32 +445,36 @@ class MechanicalDiff extends Diff {
      *
      */
     const initialiseTag = tag => {
-      tag[0] = tag[0].replace(/[<>]/g, ' ').trim().split(/\s/)[0]
-      tag.children = []
+      tag.tag = tag[0].replace(/[<>]/g, ' ').trim().split(/\s/)[0]
+      tag.opening = tag.tag.indexOf('/') !== 0
+      tag.tag = tag.tag.replace('/', '')
+      tag.pos = 1
 
       return tag
     }
 
+    // #newTextTemplate>div>table>tbody>tr:nth-child(10)>td>span>a>wbr
+
     /**
      *
      */
-    const setPrevChildren = function (i, child) {
-      // Starting from the first possibly parent element
-      // Arrive to the root
-      // Right to Left
-      for (let j = i - 1; i > 0; i--) {
+    const setSiblings = function (i, sibling) {
+      // Left to end
+      for (let j = i; j < previousTags.length; j++) {
         // If the parent is not a closing tag
         // Add the removing tag as his child
-        if (previousTags[j][0].indexOf('/') !== 0) {
-          previousTags[j].children.push(child)
-          break
+        if (previousTags[j].opening && sibling.tag === previousTags[j].tag) {
+          previousTags[j].pos++
         }
+
+        if (previousTags[j].deepness !== sibling.deepness) break
       }
     }
 
     // When the the tag is retrieved, it should create its XPATH
     // Logging all of its parents I.E. everytime it finds a opening tag
-    const leftText = text.split(tagString[0])[0]
+    // const leftText = text.split(tagString[0])[0]
+    const leftText = text.substring(0, this.pos)
 
     // Match all of the opening and closing elements
     let previousTags = RegExp(`<\\/?[\\w]+[\\w\\/\\-\\d\\=\\"\\s\\:\\%\\#\\?\\;\\&\\.\\,\\(\\)\\{\\}\\!\\;\\+${regexp.accented}]*>`, 'g').execGlobal(leftText)
@@ -461,52 +485,35 @@ class MechanicalDiff extends Diff {
     // Initialise all of the tags
     previousTags.map(tag => initialiseTag(tag))
 
-    // Iterate over the array of previous tags
-    // Each time that a opening and closing tag is matched remove it
-    // At last, it will have only the unmatched elements (i.e. parents)
-    let iterate = true
-    while (iterate) {
-      iterate = false
+    // Save the deepness
+    let deepness = 0
+    previousTags[previousTags.length - 1].deepness = deepness
 
-      // Lookup all tags
-      for (let i = 0; i < previousTags.length; i++) {
-        // Save current and next tag
-        let current = previousTags[i]
-        let next = previousTags[i + 1]
+    for (let i = previousTags.length - 2; i > 0; i--) {
+      // Save the current tag
+      let curr = previousTags[i]
+      let next = previousTags[i + 1]
 
-        if (typeof next !== 'undefined') {
-          // If the next is closing and they're the same tag remove
-          if ((next[0].indexOf('/') === 0) && current[0] === next[0].replace('/', '')) {
-            iterate = true
-            previousTags.splice(i, 2)
+      if (!curr.opening) curr.deepness = ++deepness
 
-            // Lookup at the first not closing tag and set the removed tag as his child
-            setPrevChildren(i, current[0])
-          }
-
-          // Remove single tags
-          if (current[0] === 'img' || current[0] === 'wbr' || current[0] === 'input' || current[0] === 'link') {
-            iterate = true
-            previousTags.splice(i, 1)
-
-            // Lookup at the first not closing tag and set the removed tag as his child
-            setPrevChildren(i, current[0])
-          }
-        }
+      if (curr.tag === 'img' || curr.tag === 'wbr' || curr.tag === 'link') {
+        previousTags.splice(i, 1)
+        setSiblings(i, curr)
+      } else if ((curr.opening && !next.opening) && next.tag === curr.tag) {
+        previousTags.splice(i, 2)
+        setSiblings(i, curr)
+        deepness--
       }
     }
-
-    // Using the list of siblings, set if there are siblings with the same name
-    this.setParentsSiblings(previousTags)
 
     // Build the resultpath
     let resultpath = ''
     for (const parent of previousTags) {
       // Add the tag name
-      resultpath += `>${parent[0]}`
+      resultpath += `>${parent.tag}`
 
       // If the siblings are more than 1 write it on path
-      if (parent.siblings > 1) resultpath += `:nth-child(${parent.siblings})`
+      if (parent.pos > 1) resultpath += `:nth-child(${parent.pos})`
     }
 
     // position and css selector
@@ -514,31 +521,6 @@ class MechanicalDiff extends Diff {
       index: previousTags.splice(-1).pop().index,
       path: resultpath
     }
-  }
-
-  /**
-   *
-   *
-   * @param {*} parents
-   * @returns
-   * @memberof MechanicalDiff
-   */
-  setParentsSiblings (parents) {
-    // Iterate over all of the parents
-    for (let i = parents.length - 1; i > 0; i--) {
-      let child = parents[i]
-      let parent = parents[i - 1]
-
-      child.siblings = 1
-
-      // Increment the number of siblings if the parent has
-      // children with the same name
-      for (let sibling of parent.children) {
-        if (sibling === child[0]) child.siblings++
-      }
-    }
-
-    return parents
   }
 
   /**
@@ -584,7 +566,7 @@ class StructuralDiff extends Diff {
    */
   constructor (lastId, item, by = globalUser) {
     super(diffType.structural.id, lastId)
-    this.op = TBD
+    this.op = diffType.tbd
     this.by = by
     this.timestamp = Date.now()
     this.items = [item]
@@ -711,24 +693,25 @@ class ThreeDiff {
         // Block \s texts
         if (leftDiff.content.trim().length === 0 && rightDiff.content.trim().length === 0) return false
 
+        if (leftDiff.id === 'edit-0044') {
+          console.log(leftDiff)
+        }
+
+        // If the right diff contains a /
+        if (!/\//.test(rightDiff.content)) return false
+
         // Check if both diffs are enclosed in a tag
         let leftDiffTag = leftDiff.getTag(this.newText)
         let rightDiffTag = rightDiff.getTag(this.newText)
 
-        // If the two tags are equal
-        let leftDiffTagName = leftDiff.content.replace(RegExp(regexp.tagElements, 'g'), '')
-        let rightDiffTagName = rightDiff.content.replace(RegExp(regexp.tagElements, 'g'), '')
-        if (leftDiffTagName !== rightDiffTagName) return false
+        // RightDiff is the closing, so the tag will not match
+        if (leftDiffTag === null || rightDiffTag !== null) return false
 
-        // Get the text: if it's a wrap (two ins), the text is new. or viceversa
-        let text = leftDiff.op === diffType.mechanical.ins ? this.newText : this.oldText
+        // The right diff must be enclosed in the leftDiff's tag
+        if (rightDiff.pos < leftDiffTag.index || rightDiff.pos > leftDiffTag.index + leftDiffTag.tag.outerHTML.length) return false
 
-        // TODO check if balanced
-
-        // Get indexes
-        let minIndex = Math.min(leftDiff.pos + leftDiff.content.length, rightDiff.pos + rightDiff.content.length)
-        let maxIndex = Math.max(leftDiff.pos, rightDiff.pos)
-        let wrapContent = text.substring(minIndex, maxIndex)
+        // Tag names must be equal
+        if (leftDiffTag.tag.tagName !== rightDiff.content.replace(/[\\/<>]/g, '').toUpperCase()) return false
 
         return leftDiff.op === diffType.mechanical.ins ? diffType.structural.wrap : diffType.structural.unwrap
       },
@@ -766,6 +749,10 @@ class ThreeDiff {
       (leftDiff, rightDiff = null) => {
         // Block single diff
         if (rightDiff === null) return false
+
+        if (leftDiff.id === 'edit-0044' && rightDiff.id === 'edit.0048') {
+          console.log(leftDiff)
+        }
 
         // Block \s texts
         if (leftDiff.content.trim().length === 0 && rightDiff.content.trim().length === 0) return false
@@ -994,7 +981,7 @@ class ThreeDiff {
 
     let newTextTemplate = document.createElement(tagName)
     newTextTemplate.id = 'newTextTemplate'
-    newTextTemplate.innerHTML = this.oldText
+    newTextTemplate.innerHTML = this.newText
 
     document.body.appendChild(oldTextTemplate)
     document.body.appendChild(newTextTemplate)
@@ -1047,7 +1034,7 @@ class ThreeDiff {
         }
 
         // If the diff is a wordchange, check with other diffs
-        if (typeof structuralDiff.op !== 'undefined' &&
+        if (structuralDiff.op !== diffType.tbd &&
           structuralDiff.op !== diffType.structural.wordchange &&
           structuralDiff.op !== diffType.structural.replace) {
           break
