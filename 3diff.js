@@ -404,7 +404,7 @@ class MechanicalDiff extends Diff {
       let matches = RegExp(RegExp.escape(this.content), 'g').execGlobal(text)
       // Check each matching tag
       for (const match of matches) {
-      // Save upper vars
+        // Save upper vars
         const regexUpperIndex = match.index + match[0].length
         let diffUpperIndex = this.pos + this.content.length
 
@@ -413,7 +413,7 @@ class MechanicalDiff extends Diff {
 
         // The regex result must contain the entire diff content MUST start before and end after
         if (match.index <= this.pos && regexUpperIndex >= diffUpperIndex) {
-        // Retrieve XPATH and character position proper of the tag
+          // Retrieve XPATH and character position proper of the tag
           let tag = this.getCssSelector(text, match)
 
           // TODO CHANGE
@@ -693,10 +693,6 @@ class ThreeDiff {
         // Block \s texts
         if (leftDiff.content.trim().length === 0 && rightDiff.content.trim().length === 0) return false
 
-        if (leftDiff.id === 'edit-0044') {
-          console.log(leftDiff)
-        }
-
         // If the right diff contains a /
         if (!/\//.test(rightDiff.content)) return false
 
@@ -750,10 +746,6 @@ class ThreeDiff {
         // Block single diff
         if (rightDiff === null) return false
 
-        if (leftDiff.id === 'edit-0044' && rightDiff.id === 'edit.0048') {
-          console.log(leftDiff)
-        }
-
         // Block \s texts
         if (leftDiff.content.trim().length === 0 && rightDiff.content.trim().length === 0) return false
 
@@ -800,35 +792,11 @@ class ThreeDiff {
       (leftDiff, rightDiff = null) => {
         // Only one diff that have at least one tag inside is accepted
         if (rightDiff !== null) return false
-        if (!RegExp(regexp.tagSelector).test(leftDiff.content)) return false
 
-        // Get the matching tags
-        let matches = []
-        let match
-        let tagSelectorRegexp = RegExp(regexp.tagSelector, 'g')
-        while ((match = tagSelectorRegexp.exec(leftDiff.content)) !== null) {
-          matches.push(match[0])
-        }
+        // If the entire diff is a tag
+        if (leftDiff.getTag(this.newText) === null) return false
 
-        // if the matches are not balanced
-        if (matches.length % 2 !== 0) return false
-
-        // Check if first and last elements are equals
-        // The first element can have also
-        let firstElementName = matches[0].replace(RegExp(regexp.tagElements, 'g'), '')
-        let secondElementName = matches[matches.length - 1].replace(RegExp(regexp.tagElements, 'g'), '')
-        if (firstElementName.split(/\s/)[0] !== secondElementName) return false
-
-        // Check type
-        let type = leftDiff.op === diffType.mechanical.ins
-          ? diffType.structural.insert
-          : diffType.structural.delete
-
-        let contentSelectorRegexp = RegExp(`^${regexp.textSelector}<${firstElementName}>.*</${secondElementName}>${regexp.textSelector}$`)
-
-        return contentSelectorRegexp.test(leftDiff.content)
-          ? type
-          : false
+        return leftDiff.op === diffType.mechanical.ins ? diffType.structural.insert : diffType.structural.delete
       },
 
       // OPERATIONS OVER TEXT
