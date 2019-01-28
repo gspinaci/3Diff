@@ -3,20 +3,20 @@
 # 3Diff
 **3Diff** is a model that is used over the edits of textual documents.
 
-## Three level format
+## 1. Three level format
 Normally, every Diff algorithm will give as output. This algorithm will give more informations about diffs, using these following three levels.
 
 1. **MECHANICAL LEVEL**: 2 operations, `INS` and `DEL`, only over text (markup is considered as text)
 2. **STRUCTURAL LEVEL**: 6 operations over text, 9 operations over structure.
 3. **SEMANTIC LEVEL**: Different operations (TBD)
 
-## Mechanical operations
+## 2. Mechanical operations
 
 There are only two operations: `INS`and `DEL`. The name is made up of only 3 letters in order to distinguish it from the more significant operations. Mechanical operations operate **EXCLUSIVELY** at string level: operations over markup are always expressed as `INS` and `DEL` over string containing markup. 
 
 Optionally, they can have informations about author and timestamp. Ids are severely sequential, global (independently from version).
 
-### INS
+### 2.1 INS
 
 A string of characters insertion (markup included).
 
@@ -43,7 +43,7 @@ A string of characters insertion (markup included).
 }
 ```
 
-### DEL
+### 2.2 DEL
 
 A string of characters deletion (markup included).
 
@@ -70,7 +70,18 @@ A string of characters deletion (markup included).
 }
 ```
 
-## Structural operations (text)
+## 3. Structural operations
+
+These are operations at structural level. These are sequence of mechanical operations that have a proper sense on the document even if they occurr in different places of the document.
+
+The structural operations can occur inside a unique text node or on a complex markup structure (e.g. a `WRAP` occur atomically even if it corresponds to two dependant `INSERT`). This means that timestamp and author of structural operations are **necessary** and they are applied to all of the nested mechanical operations without specifying it.
+
+**N.B.** The same structural operation can be have two or more sequence of mechanical operations with the same effect. E.g. The operation `WORDREPLACE` *word -> words* can be seen as: `INS` of *s* or `DEL` of *word* plus `INS` of *words*.
+These operations are structurally equivalent.
+
+## 3.1 Operations over text
+
+The operations that occur inside a the same markup node are textual. If the operation act over more than one markup node, even if it is similar to a textual operaton, if must be considere as a structure operation. The operations over text are inside a word (only if they fix the spelling), operation on word or operation over more words.
 
 ### PUNCTUATION
 
