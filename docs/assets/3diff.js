@@ -585,7 +585,7 @@ class StructuralDiff extends Diff {
     super(diffType.structural.id, lastId)
     this.op = diffType.tbd
     this.by = by
-    this.timestamp = Date.now()
+    this.timestamp = new Date()
     this.items = [item]
   }
 
