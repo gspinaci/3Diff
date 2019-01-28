@@ -13,6 +13,7 @@ const diffType = {
     textInsert: 'TEXTINSERT',
     textDelete: 'TEXTDELETE',
     wordchange: 'WORDCHANGE',
+    wordreplace: 'WORDREPLACE',
     textReplace: 'TEXTREPLACE',
     insert: 'INSERT',
     delete: 'DELETE',
@@ -315,26 +316,34 @@ class MechanicalDiff extends Diff {
    * eg: w o r l d s
    *     0 1 2 3 4 5
    */
-  getWord (oldText, newText) {
-    // Get the correct text
-    let text = this._getText(oldText, newText)
+  getWord (newText, minLen) {
+    // Get the correct context
+    // Normally, the position is calculated over the NEWTEXT. The regexp must be executed over it.
+    // The algorithm needs to create a pattern with the text at the position, in the
+    let newContent = newText.substring(this.pos, this.pos + minLen)
+
+    if (newContent.trim().length === 0) return null
 
     // Set left and right selector
     const left = '[A-z]*'
     const right = '[A-z]*'
 
     // Get list of matching patterns
-    let matches = RegExp(`${left}${RegExp.escape(this.content)}${right}`, 'g').execGlobal(text)
+    let matches = RegExp(`${left}${RegExp.escape(newContent)}${right}`, 'g').execGlobal(newText)
 
     // Check each matching tag
     for (const match of matches) {
       // Save upper vars
       const regexUpperIndex = match.index + match[0].length
-      const diffUpperIndex = this.pos + this.content.length
+      let diffUpperIndex = this.pos + this.content.length
+
+      // If the DIFF is a DEL, then add its length to the regexUpperIndex
+      if (this.op === diffType.mechanical.del) diffUpperIndex -= this.content.length
 
       // The regex result must contain the entire diff content MUST start before and end after
-      if (match.index < this.pos && regexUpperIndex > diffUpperIndex) {
-        return match
+      if (match.index <= this.pos && regexUpperIndex >= diffUpperIndex) {
+        // If it contains only chars or digits
+        if (/^[A-z\d]*$/.test(match[0])) { return match } else { return null }
       }
     }
 
@@ -597,6 +606,21 @@ class StructuralDiff extends Diff {
   addItem (item) {
     this.items.push(item)
   }
+
+  /**
+   *
+   *
+   * @returns
+   * @memberof StructuralDiff
+   */
+  isTextual () {
+    return this.op === diffType.structural.punctuation ||
+      this.op === diffType.structural.wordchange ||
+      this.op === diffType.structural.wordreplace ||
+      this.op === diffType.structural.textInsert ||
+      this.op === diffType.structural.textDelete ||
+      this.op === diffType.structural.textReplace
+  }
 }
 
 /**
@@ -636,9 +660,10 @@ class ThreeDiff {
        *
        */
       (leftDiff, rightDiff = null) => {
-        // Block double diff
+        //
         if (rightDiff !== null) return false
 
+        //
         if (!/^[\s]+$/.test(leftDiff.content)) return false
 
         return diffType.structural.noop
@@ -728,9 +753,7 @@ class ThreeDiff {
        * JOIN/SPLIT
        */
       (leftDiff, rightDiff = null) => {
-        // Must be only a diff
         if (rightDiff !== null) return false
-
         // Must be in this way <tag></tag> or </tag><tag> with optional space
         if (!RegExp(regexp.splitJoin).test(leftDiff.content)) return false
 
@@ -743,10 +766,6 @@ class ThreeDiff {
       (leftDiff, rightDiff = null) => {
         // Block single diff
         if (rightDiff === null) return false
-
-        if (leftDiff.id === 'edit-0075') {
-          console.log(leftDiff)
-        }
 
         // Block \s texts
         if (leftDiff.content.trim().length === 0 && rightDiff.content.trim().length === 0) return false
@@ -772,7 +791,6 @@ class ThreeDiff {
        * REPLACE 1 diffs
        */
       (leftDiff, rightDiff = null) => {
-        // Block double diff
         if (rightDiff !== null) return false
 
         // Block \s texts
@@ -793,9 +811,7 @@ class ThreeDiff {
        * Similar to TEXTINSERT || TEXDELETE, but in this case we need a balanced tree
        */
       (leftDiff, rightDiff = null) => {
-        // Only one diff that have at least one tag inside is accepted
         if (rightDiff !== null) return false
-
         // If the entire diff is a tag
         if (leftDiff.getTag(this.newText) === null) return false
 
@@ -844,6 +860,41 @@ class ThreeDiff {
       (leftDiff, rightDiff = null) => false,
 
       /**
+       * WORDCHANGE 2 DIFF
+       *
+       */
+      (leftDiff, rightDiff = null) => {
+        // Block uncoupled diff
+        if (rightDiff === null) return false
+
+        if (leftDiff.id === 'edit-0067' && rightDiff.id === 'edit-0068') {
+          console.log(this)
+        }
+
+        // Save the minLen
+        let minLen = Math.min(leftDiff.content.length, rightDiff.content.length)
+
+        // Gather the context of the leftDiff
+        let leftDiffContext = leftDiff.getWord(this.newText, minLen)
+        let rightDiffContext = rightDiff.getWord(this.newText, minLen)
+
+        // Block non matching elements
+        if (leftDiffContext === null || leftDiffContext[0] === null) return false
+        if (rightDiffContext === null || rightDiffContext[0] === null) return false
+
+        // If both diffs are not empty
+        if (leftDiffContext[0].trim().length === 0 || rightDiffContext[0].trim().length === 0) return false
+
+        // If both context are without spaces
+        if (!RegExp(regexp.wordchange).test(leftDiffContext) || !RegExp(regexp.wordchange).test(leftDiffContext)) return false
+
+        // If the two diffs context is equal
+        if (leftDiffContext[0] !== rightDiffContext[0]) return false
+
+        return diffType.structural.wordchange
+      },
+
+      /**
        * WORDCHANGE 1 DIFF
        *
        */
@@ -856,42 +907,11 @@ class ThreeDiff {
         // Gather the context of the leftDiff
         let leftDiffContext = leftDiff.getWord(this.oldText, this.newText)
 
-        if (leftDiffContext === null) return false
+        if (leftDiffContext === null || leftDiffContext[0] === null) return false
+        if (leftDiffContext[0].trim().length === 0) return false
 
         // If both context are without spaces
         if (!RegExp(regexp.wordchange).test(leftDiffContext)) return false
-
-        return diffType.structural.wordchange
-      },
-
-      /**
-       * WORDCHANGE 2 DIFF
-       *
-       */
-      (leftDiff, rightDiff = null) => {
-        // Block uncoupled diff
-        if (rightDiff === null) {
-          return false
-        }
-
-        if (leftDiff.id === 'edit-0061') {
-          console.log(leftDiff)
-        }
-
-        // Gather the context of the leftDiff
-        let leftDiffContext = leftDiff.getWord(this.oldText, this.newText)
-        let rightDiffContext = rightDiff.getWord(this.oldText, this.newText)
-
-        if (leftDiffContext === null || leftDiffContext === null) return false
-
-        // If both diffs are not empty
-        if (leftDiffContext === '' || rightDiffContext === '') return false
-
-        // If both context are without spaces
-        if (!RegExp(regexp.wordchange).test(leftDiffContext) || !RegExp(regexp.wordchange).test(leftDiffContext)) return false
-
-        // If the two diffs context is equal
-        if (leftDiffContext !== rightDiffContext) return false
 
         return diffType.structural.wordchange
       },
@@ -986,6 +1006,13 @@ class ThreeDiff {
       for (let rightIndex = leftIndex; rightIndex < newListMechanicalOperations.length; rightIndex++) {
         let rightDiff = newListMechanicalOperations[rightIndex]
 
+        console.log(leftDiff.id)
+        console.log(rightDiff.id)
+
+        if (leftDiff.id === 'edit-0051') {
+          console.log(this)
+        }
+
         // Iterate over rules
         for (let rule of this.structuralRules) {
           // If the current rule matches
@@ -1007,6 +1034,10 @@ class ThreeDiff {
             break
           }
         }
+
+        // If a wordchange or replace doesn't include the new content, it will not match any further
+        if (structuralDiff.op === diffType.structural.wordchange && !structuralDiff.items.includes(rightDiff)) break
+        if (structuralDiff.op === diffType.structural.replace && !structuralDiff.items.includes(rightDiff)) break
 
         // If the diff is a wordchange, check with other diffs
         if (structuralDiff.op !== diffType.tbd &&
@@ -1034,7 +1065,7 @@ class ThreeDiff {
       this.listStructuralOperations.push(structuralDiff)
     }
 
-    // this._setOldsNews()
+    this._setOldsNews()
   }
 
   /**
@@ -1044,17 +1075,13 @@ class ThreeDiff {
    */
   _setOldsNews () {
     for (let structuralOperation of this.listStructuralOperations) {
-      // Text and structure are managed in diffetenr types
-      if (structuralOperation.op === diffType.structural.replace) {
-        // Get the texts if it is facing a diff over structure
+      if (structuralOperation.isTextual()) {
         const texts = this._getOldNewText(structuralOperation)
         structuralOperation.new = texts.newText
         structuralOperation.old = texts.oldText
       } else {
-        // Get the texts if it is facing a diff over text
-        const texts = this._getOldNewText(structuralOperation)
-        structuralOperation.new = texts.newText
-        structuralOperation.old = texts.oldText
+        structuralOperation.new = ''
+        structuralOperation.old = ''
       }
     }
   }
@@ -1097,7 +1124,7 @@ class ThreeDiff {
     newText += newTextBoundaries.rightContext
 
     // OldText
-    let oldTextBoundaries = this._getContextBoundariesOld(this.oldText, items[0], items[items.length - 1])
+    let oldTextBoundaries = this._getContextBoundariesOld(this.newText, items[0], items[items.length - 1])
 
     let oldText = oldTextBoundaries.leftContext
     items.map((diff, index) => {
@@ -1122,8 +1149,8 @@ class ThreeDiff {
 
     // Save the text
     return {
-      newText: newText,
-      oldText: oldText
+      newText: sanitize(newText),
+      oldText: sanitize(oldText)
     }
   }
 
@@ -1150,8 +1177,8 @@ class ThreeDiff {
     let rightContext = text.substring(endPos, maxPos).split(/\s/)
 
     return {
-      leftContext: leftContext[leftContext.length - 1],
-      rightContext: rightContext[0]
+      leftContext: sanitize(leftContext[leftContext.length - 1]),
+      rightContext: sanitize(rightContext[0])
     }
   }
 
@@ -1254,6 +1281,13 @@ class ThreeDiff {
  */
 RegExp.escape = function (string) {
   return string.replace(/[-\\/\\^$*+?.()|[\]{}#&;,]/g, '\\$&')
+}
+
+// Sanitize string
+const sanitize = function (string) {
+  return string.replace(RegExp(regexp.tagSelector, 'g'), '')
+    .replace(RegExp(regexp.unclosedTagSelector, 'g'), '')
+    .replace(RegExp(regexp.unopenedTagSelector, 'g'), '')
 }
 
 /**

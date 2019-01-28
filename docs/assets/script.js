@@ -13,7 +13,7 @@ const btnDiffTextarea = $('#btnDiffTextarea')
 
 const oldT = `<div class="mw-parser-output">
     <table class="infobox vevent" style="width:22em">
-        <caption class="summary">AlternC</caption>
+        <caption class="summary">AlternB</caption>
         <tbody>
             <tr>
                 <td colspan="2" style="text-align:center">
@@ -94,7 +94,7 @@ const oldT = `<div class="mw-parser-output">
             </tr>
         </tbody>
     </table>
-    <p><b>AlternC</b> is a set of <a href="/wiki/Open_source" title="Open source">open source</a> <a href="/wiki/Web_Hosting"
+    <p><b>AlternB</b> is a set of <a href="/wiki/Open_source" title="Open source">open source</a> <a href="/wiki/Web_Hosting"
             class="mw-redirect" title="Web Hosting">Web Hosting</a> server management software for <a href="/wiki/Linux"
             title="Linux">Linux</a>/<a href="/wiki/UNIX-like" class="mw-redirect" title="UNIX-like">UNIX-like</a>
         systems, whose aim is to promote self hosting by individuals or small structures, and provide its users with an
