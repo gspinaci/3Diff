@@ -60,7 +60,7 @@ const regexp = {
 
   tagElements: '[<>/?]',
 
-  splitJoin: '^[\\s]*<[.A-z]?[^(><.)]+><[.A-z]?[^(><.)]+>[\\s]*$',
+  splitJoin: '^[\\s]*<[.A-z]?[^(><.)]+>[\\s]*<[.A-z]?[^(><.)]+>[\\s]*$',
 
   openingElement: '<[A-z]+[A-z\\/\\-\\d\\=\\"\\s\\:\\%\\.\\,\\(\\)\\{\\}\\!\\;]*>'
 }
@@ -729,24 +729,10 @@ class ThreeDiff {
        */
       (leftDiff, rightDiff = null) => {
         // Must be only a diff
-        if (rightDiff !== null) {
-          return false
-        }
+        if (rightDiff !== null) return false
 
         // Must be in this way <tag></tag> or </tag><tag> with optional space
-        if (!RegExp(regexp.splitJoin).test(leftDiff.content)) {
-          return false
-        }
-
-        // TODO check if parent is the same element
-
-        // TODO check balance
-        let matches = []
-        let match
-        let tagSelectorRegexp = RegExp(regexp.tagSelector, 'g')
-        while ((match = tagSelectorRegexp.exec(leftDiff.content)) !== null) {
-          matches.push(match[0])
-        }
+        if (!RegExp(regexp.splitJoin).test(leftDiff.content)) return false
 
         return leftDiff.op === diffType.mechanical.ins ? diffType.structural.split : diffType.structural.join
       },

@@ -98,8 +98,7 @@ const oldT = `<div class="mw-parser-output">
             class="mw-redirect" title="Web Hosting">Web Hosting</a> server management software for <a href="/wiki/Linux"
             title="Linux">Linux</a>/<a href="/wiki/UNIX-like" class="mw-redirect" title="UNIX-like">UNIX-like</a>
         systems, whose aim is to promote self hosting by individuals or small structures, and provide its users with an
-        easy web-based interface to manage a web and mail server (and other Internet-based services).</p>
-    <p>Its main specificity is to provide its users with a non-technical web interface so that anybody can, without
+        easy web-based interface to manage a web and mail server (and other Internet-based services). Its main specificity is to provide its users with a non-technical web interface so that anybody can, without
         specific knowledge, host some web services. It also have some advanced options so that technical-savvy users
         can still fine-tune it.</p>
     <p>It also feature a French and English documentation.</p>
