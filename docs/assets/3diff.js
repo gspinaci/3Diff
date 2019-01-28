@@ -356,7 +356,10 @@ class MechanicalDiff extends Diff {
 
     // If the new content is a sequence of open and close tags
     if (/^[<>]+/.test(newContent)) {
-      newContent = text.substring(this.pos - this.content.length, this.pos)
+      newContent = text.substring(this.pos - this.content.length, this.pos).split(/[<>]/).splice(-1).pop()
+    }
+    if (/[<>]+$/.test(newContent)) {
+      newContent = text.substring(this.pos - this.content.length, this.pos).split(/[<>]/).splice(-1).pop()
     }
 
     // Set left and right selector
@@ -382,10 +385,14 @@ class MechanicalDiff extends Diff {
 
         // TODO CHANGE
         if (tag === null) return null
+
         // Add a more specific selector
         tag.path = `#newTextTemplate${tag.path}`
 
-        return document.querySelector(tag.path)
+        return {
+          tag: document.querySelector(tag.path),
+          index: tag.index
+        }
       }
     }
 
@@ -453,17 +460,13 @@ class MechanicalDiff extends Diff {
       return tag
     }
 
-    // #newTextTemplate>div>table>tbody>tr:nth-child(10)>td>span>a>wbr
-
     /**
      *
      */
     const setSiblings = function (i, sibling) {
       // Left to end
       for (let j = i; j < previousTags.length; j++) {
-        // If the parent is not a closing tag
-        // Add the removing tag as his child
-        if (previousTags[j].opening && sibling.tag === previousTags[j].tag) {
+        if ((previousTags[j].opening || j === previousTags.length - 1) && sibling.tag === previousTags[j].tag) {
           previousTags[j].pos++
         }
 
@@ -494,9 +497,12 @@ class MechanicalDiff extends Diff {
       let curr = previousTags[i]
       let next = previousTags[i + 1]
 
+      // Update deepness
+      curr.deepness = deepness
+
       if (!curr.opening) curr.deepness = ++deepness
 
-      if (curr.tag === 'img' || curr.tag === 'wbr' || curr.tag === 'link') {
+      if (curr.tag === 'img' || curr.tag === 'wbr' || curr.tag === 'link' || curr.tag === 'input') {
         previousTags.splice(i, 1)
         setSiblings(i, curr)
       } else if ((curr.opening && !next.opening) && next.tag === curr.tag) {
@@ -513,7 +519,7 @@ class MechanicalDiff extends Diff {
       resultpath += `>${parent.tag}`
 
       // If the siblings are more than 1 write it on path
-      if (parent.pos > 1) resultpath += `:nth-child(${parent.pos})`
+      if (parent.pos > 1) resultpath += `:nth-of-type(${parent.pos})`
     }
 
     // position and css selector
@@ -675,13 +681,19 @@ class ThreeDiff {
         // Block single diff
         if (rightDiff === null) return false
 
-        if (leftDiff.content.trim().length === 0 && rightDiff.content.trim().length === 0) return false
+        //
+        if (!/^[\s]+$/.test(leftDiff.content)) return false
 
-        return rightDiff.content.trim() === leftDiff.content.trim() &&
-          rightDiff.pos !== leftDiff.pos &&
-          leftDiff.op !== rightDiff.op
-          ? diffType.structural.move
-          : false
+        //
+        if (rightDiff.content !== leftDiff.content) return false
+
+        //
+        if (rightDiff.pos !== leftDiff.pos) return false
+
+        //
+        if (leftDiff.op !== rightDiff.op) return false
+
+        return diffType.structural.move
       },
 
       /**
@@ -746,6 +758,10 @@ class ThreeDiff {
         // Block single diff
         if (rightDiff === null) return false
 
+        if (leftDiff.id === 'edit-0075') {
+          console.log(leftDiff)
+        }
+
         // Block \s texts
         if (leftDiff.content.trim().length === 0 && rightDiff.content.trim().length === 0) return false
 
@@ -755,9 +771,10 @@ class ThreeDiff {
 
         // If both diffs are enclosed in a tag
         if (leftDiffTag === null || rightDiffTag === null) return false
+        if (leftDiffTag.tag === null || rightDiffTag.tag === null) return false
 
         // If the tags have the same index
-        if (leftDiffTag !== rightDiffTag) return false
+        if (leftDiffTag.tag !== rightDiffTag.tag) return false
 
         // If the two diffs have equal index
         // if (leftDiff.pos !== rightDiff.pos) return false
@@ -851,7 +868,7 @@ class ThreeDiff {
         }
 
         // Gather the context of the leftDiff
-        let leftDiffContext = leftDiff.getWord(this.newText)
+        let leftDiffContext = leftDiff.getWord(this.oldText, this.newText)
 
         if (leftDiffContext === null) return false
 
@@ -871,9 +888,13 @@ class ThreeDiff {
           return false
         }
 
+        if (leftDiff.id === 'edit-0061') {
+          console.log(leftDiff)
+        }
+
         // Gather the context of the leftDiff
-        let leftDiffContext = leftDiff.getWord(this.newText)
-        let rightDiffContext = rightDiff.getWord(this.newText)
+        let leftDiffContext = leftDiff.getWord(this.oldText, this.newText)
+        let rightDiffContext = rightDiff.getWord(this.oldText, this.newText)
 
         if (leftDiffContext === null || leftDiffContext === null) return false
 

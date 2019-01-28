@@ -94,6 +94,40 @@ const oldT = `<div class="mw-parser-output">
             </tr>
         </tbody>
     </table>
+    <p><b>AlternC</b> is a set of <a href="/wiki/Open_source" title="Open source">open source</a> <a href="/wiki/Web_Hosting"
+            class="mw-redirect" title="Web Hosting">Web Hosting</a> server management software for <a href="/wiki/Linux"
+            title="Linux">Linux</a>/<a href="/wiki/UNIX-like" class="mw-redirect" title="UNIX-like">UNIX-like</a>
+        systems, whose aim is to promote self hosting by individuals or small structures, and provide its users with an
+        easy web-based interface to manage a web and mail server (and other Internet-based services).</p>
+    <p>Its main specificity is to provide its users with a non-technical web interface so that anybody can, without
+        specific knowledge, host some web services. It also have some advanced options so that technical-savvy users
+        can still fine-tune it.</p>
+    <p>It also feature a French and English documentation.</p>
+    <div id="toc" class="toc">
+        <input type="checkbox" role="button" id="toctogglecheckbox" class="toctogglecheckbox" style="display:none" />
+        <div class="toctitle" lang="en" dir="ltr">
+            <h2>Contents</h2>
+            <span class="toctogglespan"><label class="toctogglelabel" for="toctogglecheckbox"></label></span>
+        </div>
+        <ul>
+            <li class="toclevel-1 tocsection-1"><a href="#History"><span class="tocnumber">1</span> <span class="toctext">History</span></a></li>
+            <li class="toclevel-1 tocsection-2"><a href="#Version_numbering"><span class="tocnumber">2</span> <span
+                        class="toctext">Version numbering</span></a></li>
+            <li class="toclevel-1 tocsection-3"><a href="#Features"><span class="tocnumber">3</span> <span class="toctext">Features</span></a></li>
+            <li class="toclevel-1 tocsection-4"><a href="#See_Also"><span class="tocnumber">4</span> <span class="toctext">See
+                        Also</span></a>
+                <ul>
+                    <li class="toclevel-2 tocsection-5"><a href="#Other_Articles"><span class="tocnumber">4.1</span>
+                            <span class="toctext">Other Articles</span></a></li>
+                    <li class="toclevel-2 tocsection-6"><a href="#Bibliography"><span class="tocnumber">4.2</span>
+                            <span class="toctext">Bibliography</span></a></li>
+                </ul>
+            </li>
+            <li class="toclevel-1 tocsection-7"><a href="#=_External_Links"><span class="tocnumber">5</span> <span
+                        class="toctext">= External Links</span></a></li>
+            <li class="toclevel-1 tocsection-8"><a href="#References"><span class="tocnumber">6</span> <span class="toctext">References</span></a></li>
+        </ul>
+    </div>
 </div>`
 
 const newT = `<div class="mw-parser-output">
@@ -178,7 +212,43 @@ const newT = `<div class="mw-parser-output">
             </tr>
         </tbody>
     </table>
-</div>`
+    <p><b>AlternC</b> is a set of <a href="/wiki/Open-source_software" title="Open-source software">open-source</a> <a
+            href="/wiki/Web_Hosting" class="mw-redirect" title="Web Hosting">Web Hosting</a> server management software
+        for <a href="/wiki/Linux" title="Linux">Linux</a>/<a href="/wiki/UNIX-like" class="mw-redirect" title="UNIX-like">UNIX-like</a>
+        systems, whose aim is to promote self hosting by individuals or small structures, and provide its users with an
+        easy web-based interface to manage a web and mail server (and other Internet-based services).</p>
+    <p>Its main specificity is to provide its users with a non-technical web interface so that anybody can, without
+        specific knowledge, host some web services. It also has some advanced options so that technical-savvy users can
+        still fine-tune it.</p>
+    <p>It also features documentation in French and English.</p>
+    <div id="toc" class="toc">
+        <input type="checkbox" role="button" id="toctogglecheckbox" class="toctogglecheckbox" style="display:none">
+        <div class="toctitle" lang="en" dir="ltr">
+            <h2>Contents</h2>
+            <span class="toctogglespan">
+                <label class="toctogglelabel" for="toctogglecheckbox"></label>
+            </span>
+        </div>
+        <ul>
+            <li class="toclevel-1 tocsection-1"><a href="#History"><span class="tocnumber">1</span> <span class="toctext">History</span></a></li>
+            <li class="toclevel-1 tocsection-2"><a href="#Version_numbering"><span class="tocnumber">2</span> <span
+                        class="toctext">Version numbering</span></a></li>
+            <li class="toclevel-1 tocsection-3"><a href="#Features"><span class="tocnumber">3</span> <span class="toctext">Features</span></a></li>
+            <li class="toclevel-1 tocsection-4"><a href="#See_also"><span class="tocnumber">4</span> <span class="toctext">See
+                        also</span></a>
+                <ul>
+                    <li class="toclevel-2 tocsection-5"><a href="#Bibliography"><span class="tocnumber">4.1</span>
+                            <span class="toctext">Bibliography</span></a></li>
+                    <li class="toclevel-2 tocsection-6"><a href="#Other_Articles"><span class="tocnumber">4.2</span>
+                            <span class="toctext">Other Articles</span></a></li>
+                </ul>
+            </li>
+            <li class="toclevel-1 tocsection-7"><a href="#References"><span class="tocnumber">5</span> <span class="toctext">References</span></a></li>
+            <li class="toclevel-1 tocsection-8"><a href="#External_links"><span class="tocnumber">6</span> <span class="toctext">External
+                        links</span></a></li>
+        </ul>
+    </div>
+ </div>`
 
 $('document').ready(function () {
   oldTextTextarea.val(oldT)
