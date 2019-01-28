@@ -585,7 +585,7 @@ class StructuralDiff extends Diff {
     super(diffType.structural.id, lastId)
     this.op = diffType.tbd
     this.by = by
-    this.timestamp = Date.now()
+    this.timestamp = new Date()
     this.items = [item]
   }
 
@@ -743,13 +743,13 @@ class ThreeDiff {
         if (rightDiff === null) return false
 
         //
-        if (!/^[\s]+$/.test(leftDiff.content)) return false
+        if (!/^[\s]+$/.test(leftDiff.content) || !/^[\s]+$/.test(rightDiff.content)) return false
 
         //
         if (rightDiff.content !== leftDiff.content) return false
 
         //
-        if (rightDiff.pos !== leftDiff.pos) return false
+        if (rightDiff.pos === leftDiff.pos) return false
 
         //
         if (leftDiff.op !== rightDiff.op) return false

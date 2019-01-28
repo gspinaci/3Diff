@@ -743,13 +743,13 @@ class ThreeDiff {
         if (rightDiff === null) return false
 
         //
-        if (!/^[\s]+$/.test(leftDiff.content)) return false
+        if (!/^[\s]+$/.test(leftDiff.content) || !/^[\s]+$/.test(rightDiff.content)) return false
 
         //
         if (rightDiff.content !== leftDiff.content) return false
 
         //
-        if (rightDiff.pos !== leftDiff.pos) return false
+        if (rightDiff.pos === leftDiff.pos) return false
 
         //
         if (leftDiff.op !== rightDiff.op) return false
