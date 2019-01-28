@@ -3,12 +3,12 @@
 const diffType = {
   tbd: 'TBD',
   mechanical: {
-    id: 'edit',
+    id: 'EDIT',
     ins: 'INS',
     del: 'DEL'
   },
   structural: {
-    id: 'structural',
+    id: 'STRUCTURAL',
     punctuation: 'PUNCTUATION',
     textInsert: 'TEXTINSERT',
     textDelete: 'TEXTDELETE',
@@ -26,7 +26,7 @@ const diffType = {
     replace: 'REPLACE'
   },
   semantic: {
-    id: 'semantic'
+    id: 'SEMANTIC'
   },
   newTextId: 'new',
   oldTextId: 'old'
@@ -66,7 +66,7 @@ const regexp = {
   openingElement: '<[A-z]+[A-z\\/\\-\\d\\=\\"\\s\\:\\%\\.\\,\\(\\)\\{\\}\\!\\;]*>'
 }
 
-const globalUser = 'SAURON'
+const globalUser = 'USER-0001'
 
 /**
  *
@@ -867,10 +867,6 @@ class ThreeDiff {
         // Block uncoupled diff
         if (rightDiff === null) return false
 
-        if (leftDiff.id === 'edit-0067' && rightDiff.id === 'edit-0068') {
-          console.log(this)
-        }
-
         // Save the minLen
         let minLen = Math.min(leftDiff.content.length, rightDiff.content.length)
 
@@ -1005,14 +1001,7 @@ class ThreeDiff {
 
       for (let rightIndex = leftIndex; rightIndex < newListMechanicalOperations.length; rightIndex++) {
         let rightDiff = newListMechanicalOperations[rightIndex]
-
-        console.log(leftDiff.id)
-        console.log(rightDiff.id)
-
-        if (leftDiff.id === 'edit-0051') {
-          console.log(this)
-        }
-
+        
         // Iterate over rules
         for (let rule of this.structuralRules) {
           // If the current rule matches
@@ -1283,7 +1272,10 @@ RegExp.escape = function (string) {
   return string.replace(/[-\\/\\^$*+?.()|[\]{}#&;,]/g, '\\$&')
 }
 
-// Sanitize string
+/**
+ *
+ *
+ */
 const sanitize = function (string) {
   return string.replace(RegExp(regexp.tagSelector, 'g'), '')
     .replace(RegExp(regexp.unclosedTagSelector, 'g'), '')
