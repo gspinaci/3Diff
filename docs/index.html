@@ -16,6 +16,10 @@
     [id$="TextTemplate"]{
       display: none;
     }
+
+    .navbar-nav > a:hover{
+      cursor: pointer;
+    }
   </style>
 </head>
 
@@ -30,8 +34,8 @@
     </button>
     <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
       <div class="navbar-nav">
-        <a class="nav-item nav-link active" href="#">File </a>
-        <a class="nav-item nav-link" href="#">Input</a>
+        <a class="nav-item nav-link active" id="btnShowFormFile">File</a>
+        <a class="nav-item nav-link" id="btnShowFormTextarea">Input</a>
       </div>
     </div>
   </nav>
@@ -39,7 +43,7 @@
   <!-- Container -->
   <div class="container-fluid">
     <form>
-      <div class="form-row">
+      <div id="formTextarea" class="form-row">
         <div class="col-md-6">
           <label for="oldTextTextarea">Old text</label>
           <textarea class="form-control" id="oldTextTextarea" rows="10"></textarea>
@@ -48,16 +52,31 @@
           <label for="newTextTextarea">New text</label>
           <textarea class="form-control" id="newTextTextarea" rows="10"></textarea>
         </div>
+        <div class="form-row">
+          <button type="button" class="btn btn-primary" id="btnDiffTextarea">DIFF</button>
+        </div>
       </div>
 
-      <div class="form-row">
-        <button type="button" class="btn btn-primary" id="btnDiffTextarea">DIFF</button>
+      <div id="formFile" class="form-row">
+        <div class="col-md-6">
+          <label for="oldTextTextarea">Old text</label>
+          <input type="file" id="oldFile" name="file" accept="text/html"/>
+        </div>
+        <div class="col-md-6">
+          <label for="newTextTextarea">New text</label>
+          <input type="file" id="newFile" name="file" accept="text/html" />
+        </div>
+        <div class="form-row">
+          <button type="button" class="btn btn-primary" id="btnDiffFile">DIFF</button>
+        </div>
       </div>
+
+
       <!--
       <div class="form-row">
         <button type="button" class="btn btn-success" id="btnDiffAjax">Execute diff AJAX</button>
       </div>
-      --> 
+      -->
     </form>
 
     <!-- Result -->
