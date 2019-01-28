@@ -12,9 +12,63 @@ Normally, every Diff algorithm will give as output. This algorithm will give mor
 
 ## Mechanical operations
 
+There are only two operations: `INS`and `DEL`. The name is made up of only 3 letters in order to distinguish it from the more significant operations. Mechanical operations operate **EXCLUSIVELY** at string level: operations over markup are always expressed as `INS` and `DEL` over string containing markup. 
+
+Optionally, they can have informations about author and timestamp. Ids are severely sequential, global (independently from version).
+
 ### INS
 
+A string of characters insertion (markup included).
+
+```
+{
+  "id": "edit-00001",
+  "op": "INS",
+  "pos": 80,
+  "content": "nuovo"
+}
+{
+  "id": "edit-00003",
+  "op": "INS",
+  "pos": 100,
+  "content": "</p><p>"
+}
+{
+  "id": "edit-00005",
+  "op": "INS",
+  "by": "Fabio Vitali",
+  "timestamp": "2018-03-10T07:25:23.891Z", 
+  "pos": 120,
+  "content": "new content"
+}
+```
+
 ### DEL
+
+A string of characters deletion (markup included).
+
+```
+{
+  "id": "edit-00002",
+  "op": "DEL",
+  "pos": 90,
+  "content": "vecchio"
+}
+{
+  "id": "edit-00004",
+  "op": "DEL",
+  "pos": 110,
+  "content": "part of the first paragraph.<p>Part of "
+}
+{
+  "id": "edit-00006",
+  "op": "DEL",
+  "by": "Fabio Vitali",
+  "timestamp": "2018-03-10T07:25:23.891Z", 
+  "pos": 130,
+  "content": "old content"
+}
+```
 
 ## Structural operations (text)
 
@@ -203,3 +257,25 @@ TBD
 ## Create a new Adapter
 
 TBD
+
+## TODO list
+
+### 1. WORDREPLACE
+
+In order to handle it, we should use wordnet APIs for the synset. Use something else for verbal forms (e.g. have -> has).
+
+### 2. Semantic operations
+
+Handle all of the semantic operations
+
+### 3. Handle unbalanced diffs
+
+Handle 
+
+### 4. Handle text and structure in single diff
+
+When we face a situation like the following one ()
+
+
+
+### 4. Save old and new in structural diff
