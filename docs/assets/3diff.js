@@ -867,6 +867,9 @@ class ThreeDiff {
         // Block uncoupled diff
         if (rightDiff === null) return false
 
+        // If the contents are only text
+        if (!/^[A-z\d]*$/.test(leftDiff.content) || !/^[A-z\d]*$/.test(rightDiff.content)) return false
+
         // Save the minLen
         let minLen = Math.min(leftDiff.content.length, rightDiff.content.length)
 
@@ -874,11 +877,9 @@ class ThreeDiff {
         let leftDiffContext = leftDiff.getWord(this.newText, minLen)
         let rightDiffContext = rightDiff.getWord(this.newText, minLen)
 
-        // Block non matching elements
+        // Block no context
         if (leftDiffContext === null || leftDiffContext[0] === null) return false
         if (rightDiffContext === null || rightDiffContext[0] === null) return false
-
-        // If both diffs are not empty
         if (leftDiffContext[0].trim().length === 0 || rightDiffContext[0].trim().length === 0) return false
 
         // If both context are without spaces
@@ -896,17 +897,19 @@ class ThreeDiff {
        */
       (leftDiff, rightDiff = null) => {
         // Block couple of diffs
-        if (rightDiff !== null) {
-          return false
-        }
+        if (rightDiff !== null) return false
+
+        // If the content is only text
+        if (!/^[A-z\d]*$/.test(leftDiff.content) || !/^[A-z\d]*$/.test(rightDiff.content)) return false
 
         // Gather the context of the leftDiff
         let leftDiffContext = leftDiff.getWord(this.oldText, this.newText)
 
+        // Block no context
         if (leftDiffContext === null || leftDiffContext[0] === null) return false
         if (leftDiffContext[0].trim().length === 0) return false
 
-        // If both context are without spaces
+        // If context is without spaces
         if (!RegExp(regexp.wordchange).test(leftDiffContext)) return false
 
         return diffType.structural.wordchange
@@ -1001,7 +1004,7 @@ class ThreeDiff {
 
       for (let rightIndex = leftIndex; rightIndex < newListMechanicalOperations.length; rightIndex++) {
         let rightDiff = newListMechanicalOperations[rightIndex]
-        
+
         // Iterate over rules
         for (let rule of this.structuralRules) {
           // If the current rule matches
