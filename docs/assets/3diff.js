@@ -1000,6 +1000,23 @@ class ThreeDiff {
     this.semanticRules = [
 
       /**
+       * EDITCHAIN
+       *
+       */
+      (leftDiff, rightDiff = null) => {
+        if (rightDiff === null) return false
+
+        // If old and new are not empty
+        if (leftDiff.old.trim().length === 0 || rightDiff.old.trim().length === 0) return false
+        if (leftDiff.new.trim().length === 0 || rightDiff.new.trim().length === 0) return false
+
+        if (leftDiff.old !== rightDiff.old) return false
+        if (leftDiff.new !== rightDiff.new) return false
+
+        return diffType.semantic.editchain
+      },
+
+      /**
        * MEANING
        *
        */
