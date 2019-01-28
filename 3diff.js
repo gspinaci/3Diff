@@ -34,11 +34,6 @@ const diffType = {
   oldTextId: 'old'
 }
 
-// List of algorithms
-const algorithms = {
-  diffMatchPatch: 'diff_match_patch'
-}
-
 //
 const regexp = {
   // A single punctuation with a optional following \s (space)
@@ -88,7 +83,7 @@ class DiffAlgorithmSelector {
     let result
 
     switch (type) {
-      case algorithms.diffMatchPatch:
+      case DiffAlgorithmSelector.algorithms.diffMatchPatch:
         result = new DiffMatchPatchAdapter(oldText, newText)
         break
       default:
@@ -96,6 +91,10 @@ class DiffAlgorithmSelector {
     }
     return result
   }
+}
+
+DiffAlgorithmSelector.algorithms = {
+  diffMatchPatch: 'diff_match_patch'
 }
 
 /**
@@ -937,7 +936,7 @@ class ThreeDiff {
         if (rightDiff !== null) return false
 
         // If the content is only text
-        if (!/^[A-z\d]*$/.test(leftDiff.content) || !/^[A-z\d]*$/.test(rightDiff.content)) return false
+        if (!/^[A-z\d]*$/.test(leftDiff.content)) return false
 
         // Gather the context of the leftDiff
         let leftDiffContext = leftDiff.getWord(this.oldText, this.newText)

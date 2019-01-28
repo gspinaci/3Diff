@@ -63,20 +63,20 @@ $('document').ready(function () {
     if (oldTextTextarea.val().trim().length === 0 || newTextTextarea.val().trim().length === 0) {
       return alert('ERROR!, Fill both textareas')
     }
-    makeDiff(oldTextTextarea.val(), newTextTextarea.val(), algorithms.diffMatchPatch)
+    makeDiff(oldTextTextarea.val(), newTextTextarea.val(), DiffAlgorithmSelector.algorithms.diffMatchPatch)
   })
 
   btnDiffFile.on('click', function () {
     if (oldText.trim().length === 0 || newText.trim().length === 0) {
       return alert('ERROR!, Upload both files')
     }
-    makeDiff(oldText, newText, algorithms.diffMatchPatch)
+    makeDiff(oldText, newText, DiffAlgorithmSelector.algorithms.diffMatchPatch)
   })
 })
 
 const makeDiff = (oldText, newText, type) => {
   // Get the right algorithm
-  const algorithm = new DiffAlgorithmSelector(oldText, newText, type)
+  const algorithm = new DiffAlgorithmSelector(oldText, newText, DiffAlgorithmSelector.algorithms.diffMatchPatch)
 
   // Log the result
   logDiffHTML(algorithm.getDiffHTML())
