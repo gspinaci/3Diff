@@ -26,7 +26,9 @@ const diffType = {
     replace: 'REPLACE'
   },
   semantic: {
-    id: 'SEMANTIC'
+    id: 'SEMANTIC',
+    meaning: 'MEANING',
+    editchain: 'EDITCHAIN'
   },
   newTextId: 'new',
   oldTextId: 'old'
@@ -37,6 +39,7 @@ const algorithms = {
   diffMatchPatch: 'diff_match_patch'
 }
 
+//
 const regexp = {
   // A single punctuation with a optional following \s (space)
   // and an optional following A-z (capitalized or not character)
@@ -626,6 +629,40 @@ class StructuralDiff extends Diff {
 /**
  *
  *
+ * @class SemanticDiff
+ * @extends {Diff}
+ */
+class SemanticDiff extends Diff {
+  constructor (lastId, item) {
+    super(diffType.semantic.id, lastId)
+    this.op = diffType.tbd
+    this.items = [item]
+  }
+
+  /**
+   *
+   *
+   * @param {*} operation
+   * @memberof StructuralDiff
+   */
+  setOperation (operation) {
+    this.op = operation
+  }
+
+  /**
+   *
+   *
+   * @param {*} item
+   * @memberof StructuralDiff
+   */
+  addItem (item) {
+    this.items.push(item)
+  }
+}
+
+/**
+ *
+ *
  * @class ThreeDiff
  */
 class ThreeDiff {
@@ -959,6 +996,23 @@ class ThreeDiff {
 
     // Execute the structural analysis
     this._executeStructuralAnalysis()
+
+    this.semanticRules = [
+
+      /**
+       * MEANING
+       *
+       */
+      (leftDiff, rightDiff = null) => {
+        // Block double diffs
+        if (rightDiff !== null) return false
+
+        return diffType.semantic.meaning
+      }
+
+    ]
+
+    this._executeSemanticAnalysis()
   }
 
   /**
@@ -1058,6 +1112,71 @@ class ThreeDiff {
     }
 
     this._setOldsNews()
+  }
+
+  /**
+   *
+   *
+   * @memberof ThreeDiff
+   */
+  _executeSemanticAnalysis () {
+    let newListStructuralOperations = this.listStructuralOperations.slice(0)
+
+    // Iterate over the list of mechanical operations
+    const leftIndex = 0
+    while (newListStructuralOperations.length > 0) {
+      // Set a matched rule
+      let matchedRules = false
+
+      // Remove the current diff from the list and get reference to it
+      let leftDiff = newListStructuralOperations.splice(leftIndex, 1)[0]
+
+      // Create a placeholder structuralDiff
+      let semanticDiff = new SemanticDiff(this.listSemanticOperations.length, leftDiff)
+
+      for (let rightIndex = leftIndex; rightIndex < newListStructuralOperations.length; rightIndex++) {
+        let rightDiff = newListStructuralOperations[rightIndex]
+
+        // Iterate over rules
+        for (let rule of this.semanticRules) {
+          // If the current rule matches
+          let ruleResult = rule(leftDiff, rightDiff)
+          if (this._checkRuleResulCorrectness(ruleResult)) {
+            // Update operation type
+            semanticDiff.setOperation(ruleResult)
+
+            // Add the mechanical operation and add it
+            semanticDiff.addItem(newListStructuralOperations.splice(rightIndex, 1)[0])
+
+            // There is a match
+            matchedRules = true
+
+            // Update index to continue inside the for boundaries
+            rightIndex--
+
+            // Don't call any other rule
+            break
+          }
+        }
+      }
+
+      // Try all rules on only left diff
+      if (!matchedRules) {
+        for (let rule of this.semanticRules) {
+          // Try the rules
+          let ruleResult = rule(leftDiff)
+          if (this._checkRuleResulCorrectness(ruleResult)) {
+            // Update operation type
+            semanticDiff.setOperation(ruleResult)
+
+            break
+          }
+        }
+      }
+
+      // Append the structural operation
+      this.listSemanticOperations.push(semanticDiff)
+    }
   }
 
   /**

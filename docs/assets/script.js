@@ -264,8 +264,8 @@ $('document').ready(function () {
 
     // Log the result
     logDiffHTML(algorithm.getDiffHTML())
-    logMechanicalList(JSON.stringify(algorithm.getMechanicalOperations(), null, 2))
-    logStructuralList(JSON.stringify(algorithm.getStructuralOperations(), null, 2))
+    // logMechanicalList(JSON.stringify(algorithm.getMechanicalOperations(), null, 2))
+    legSemanticList(JSON.stringify(algorithm.getSemanticOperations(), null, 2))
   }
 })
 
@@ -282,6 +282,13 @@ const logMechanicalList = text => codeMechanicalList.text(text)
  * @param {*} text
  */
 const logStructuralList = text => codeStructuralList.text(text)
+
+/**
+ *
+ *
+ * @param {*} text
+ */
+const legSemanticList = text => codeStructuralList.text(text)
 
 /**
  *
