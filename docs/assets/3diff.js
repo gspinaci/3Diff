@@ -184,6 +184,8 @@ class DiffMatchPatchAdapter extends Adapter {
     // https://github.com/google/diff-match-patch/wiki/API#diff_cleanupsemanticdiffs--null
     dmp.diff_cleanupSemantic(this.diffs)
 
+    console.log(this.diffs)
+
     // Get Patches
     // https://github.com/google/diff-match-patch/wiki/API#patch_makediffs--patches
     this.patches = dmp.patch_make(this.diffs)
@@ -678,6 +680,8 @@ class ThreeDiff {
     this.listStructuralOperations = []
     this.listSemanticOperations = []
 
+    console.log(this.listMechanicalOperations)
+
     // Save the texts
     this.oldText = oldText
     this.newText = newText
@@ -775,6 +779,7 @@ class ThreeDiff {
 
         // RightDiff is the closing, so the tag will not match
         if (leftDiffTag === null || rightDiffTag !== null) return false
+        if (leftDiffTag.tag === null || rightDiffTag.tag !== null) return false
 
         // The right diff must be enclosed in the leftDiff's tag
         if (rightDiff.pos < leftDiffTag.index || rightDiff.pos > leftDiffTag.index + leftDiffTag.tag.outerHTML.length) return false
@@ -1428,6 +1433,8 @@ RegExp.prototype.execGlobal = function (text) {
   // Save matches
   let matches = []
   let match
+
+  if (this.source.length > 200) return []
 
   // Return all matches
   let tagSelectorRegexp = RegExp(this.source, this.flags)

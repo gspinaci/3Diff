@@ -82,6 +82,8 @@ const makeDiff = (oldText, newText, type) => {
   logDiffHTML(algorithm.getDiffHTML())
   // logMechanicalList(JSON.stringify(algorithm.getMechanicalOperations(), null, 2))
   legSemanticList(JSON.stringify(algorithm.getSemanticOperations(), null, 2))
+
+  console.log(JSON.stringify(algorithm.getSemanticOperations(), null, 2))
 }
 
 const showFormFile = () => {
