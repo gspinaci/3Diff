@@ -420,7 +420,7 @@ class MechanicalDiff extends Diff {
    */
   getTag (text) {
     // If is a tag
-    if (RegExp('^[\\s]*<[\\w]+[\\W\\s\\w\\d]*>[\\s]*$').test(this.content)) {
+    if (RegExp('^[\\s]*<\\/?[\\w]+[\\W\\s\\w\\d]*>[\\s]*$').test(this.content)) {
       let matches = RegExp(RegExp.escape(this.content), 'g').execGlobal(text)
       // Check each matching tag
       for (const match of matches) {
@@ -439,10 +439,12 @@ class MechanicalDiff extends Diff {
           // TODO CHANGE
           if (tag === null) return null
           // Add a more specific selector
-          tag.path = `#newTextTemplate${tag.path}`
+          tag.path = (this.op === diffType.mechanical.ins) ? `#newTextTemplate${tag.path}` : `#oldTextTemplate${tag.path}`
+
+          let tmpTag = document.querySelector(tag.path)
 
           return {
-            tag: document.querySelector(tag.path),
+            tag: tmpTag,
             index: tag.index
           }
         }
@@ -522,8 +524,11 @@ class MechanicalDiff extends Diff {
         previousTags.splice(i, 2)
         setSiblings(i, curr)
         deepness--
+        i--
       }
     }
+
+    if (!tagString.opening) { previousTags.push(tagString) }
 
     // Build the resultpath
     let resultpath = ''
@@ -747,16 +752,16 @@ class ThreeDiff {
         if (rightDiff === null) return false
 
         //
-        if (!/^[\s]+$/.test(leftDiff.content) || !/^[\s]+$/.test(rightDiff.content)) return false
+        // if (!/^[\s]+$/.test(leftDiff.content) || !/^[\s]+$/.test(rightDiff.content)) return false
 
         //
-        if (rightDiff.content !== leftDiff.content) return false
+        if (rightDiff.content.trim() !== leftDiff.content.trim()) return false
 
         //
         if (rightDiff.pos === leftDiff.pos) return false
 
         //
-        if (leftDiff.op !== rightDiff.op) return false
+        if (leftDiff.op === rightDiff.op) return false
 
         return diffType.structural.move
       },
@@ -778,8 +783,8 @@ class ThreeDiff {
         let rightDiffTag = rightDiff.getTag(this.newText)
 
         // RightDiff is the closing, so the tag will not match
-        if (leftDiffTag === null || rightDiffTag !== null) return false
-        if (leftDiffTag.tag === null || rightDiffTag.tag !== null) return false
+        if (leftDiffTag === null || rightDiffTag === null) return false
+        if (leftDiffTag.tag === null || rightDiffTag.tag === null) return false
 
         // The right diff must be enclosed in the leftDiff's tag
         if (rightDiff.pos < leftDiffTag.index || rightDiff.pos > leftDiffTag.index + leftDiffTag.tag.outerHTML.length) return false
@@ -1042,7 +1047,7 @@ class ThreeDiff {
    * @memberof ThreeDiff
    */
   _addTemplates () {
-    const tagName = 'div'
+    const tagName = 'iframe'
 
     let oldTextTemplate = document.createElement(tagName)
     oldTextTemplate.id = 'oldTextTemplate'
